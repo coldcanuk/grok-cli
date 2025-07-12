@@ -3,9 +3,11 @@ Name: grok-cli
 Version: 1.0.0
 Summary: A CLI for xAI Grok API, functional in Windows PowerShell
 Author: Grok Assisted Build
+License-File: LICENSE
 Requires-Dist: requests
 Dynamic: author
 Dynamic: description
+Dynamic: license-file
 Dynamic: requires-dist
 Dynamic: summary
 

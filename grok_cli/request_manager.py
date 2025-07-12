@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 import hashlib
 
-from .file_tools import execute_tool_call, list_files_recursive_impl
+import os
 
 class RequestPriority(Enum):
     HIGH = 1      # User-initiated requests
@@ -115,7 +115,10 @@ class RequestManager:
             recursive = req.operation == "list_files_recursive"
             try:
                 if recursive:
-                    files = list_files_recursive_impl(directory)
+                    files = []
+                    for root, dirs, filenames in os.walk(directory):
+                        for filename in filenames:
+                            files.append(os.path.relpath(os.path.join(root, filename), directory))
                 else:
                     files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
                 result = {"success": True, "files": files}
@@ -178,14 +181,8 @@ class RequestManager:
                 if req != batch[0]:
                     await asyncio.sleep(0.1)
                 
-                # Process individual request by calling execute_tool_call or similar
-                tool_call = {
-                    "function": {
-                        "name": req.operation,
-                        "arguments": json.dumps(req.params)
-                    }
-                }
-                result = execute_tool_call(tool_call, brave_key=None)  # Assuming brave_key not needed here
+                # Simple individual processing - delegate to appropriate handler
+                result = {"error": "Individual tool execution not implemented in RequestManager"}
                 results[req.cache_key or f"{req.operation}_{req.timestamp}"] = result
                 
                 if req.cache_key and "success" in result:

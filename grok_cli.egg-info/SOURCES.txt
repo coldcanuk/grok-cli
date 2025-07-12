@@ -1,6 +1,11 @@
+LICENSE
+README.md
 setup.py
 grok_cli/__init__.py
 grok_cli/cli.py
+grok_cli/engine.py
+grok_cli/request_manager.py
+grok_cli/utils.py
 grok_cli.egg-info/PKG-INFO
 grok_cli.egg-info/SOURCES.txt
 grok_cli.egg-info/dependency_links.txt

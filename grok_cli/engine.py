@@ -1,17 +1,15 @@
 """
-Optimized Grok CLI with advanced rate limiting and batching
+Core engine for Grok CLI with advanced optimization and streaming
 """
 
-import argparse
+import asyncio
 import json
 import os
+import random
 import sys
 import time
-import base64
-import random
-import asyncio
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import requests
 
 from .request_manager import RequestManager, RequestPriority
@@ -26,16 +24,19 @@ When using tools:
 - Each tool call should contain exactly one operation
 - I will batch and cache operations for efficiency
 - File operations are cached to avoid redundant reads
-- Your requests are prioritized and rate-limited automatically
-"""
+- Your requests are prioritized and rate-limited automatically"""
 
-class OptimizedGrokCLI:
-    def __init__(self):
-        self.request_manager = RequestManager(min_delay_seconds=0.3)
+class GrokEngine:
+    """Core engine for Grok CLI with advanced features."""
+    
+    def __init__(self, min_delay_seconds: float = 0.3):
+        self.request_manager = RequestManager(min_delay_seconds)
         self.config = self.load_config()
         self.tools = self.build_tool_definitions()
+        self.last_request_time = 0
         
     def load_config(self) -> Dict[str, Any]:
+        """Load configuration from settings.json."""
         config_path = "settings.json"
         if os.path.exists(config_path):
             with open(config_path, "r") as f:
@@ -147,7 +148,79 @@ class OptimizedGrokCLI:
         
         return tools
     
-    def execute_tool_call_optimized(self, tool_call: Dict[str, Any], brave_api_key: Optional[str] = None) -> Dict[str, Any]:
+    def handle_stream_with_tools(self, response, brave_api_key=None, debug_mode=None) -> Tuple[str, List[Dict]]:
+        """Handle streaming response with tool call detection."""
+        full_content = []
+        tool_calls = []
+        
+        is_debug = debug_mode if debug_mode is not None else bool(os.getenv("GROK_DEBUG"))
+        
+        for chunk in response.iter_lines():
+            if chunk:
+                chunk = chunk.decode("utf-8").lstrip("data: ")
+                if chunk != "[DONE]":
+                    try:
+                        data = json.loads(chunk)
+                        choice = data["choices"][0]
+                        
+                        if "delta" in choice and "content" in choice["delta"]:
+                            delta = choice["delta"]["content"]
+                            print(delta, end="", flush=True)
+                            full_content.append(delta)
+                        
+                        if "delta" in choice and "tool_calls" in choice["delta"]:
+                            for tool_call_delta in choice["delta"]["tool_calls"]:
+                                if "index" in tool_call_delta:
+                                    idx = tool_call_delta["index"]
+                                    while len(tool_calls) <= idx:
+                                        tool_calls.append({
+                                            "id": "",
+                                            "type": "function",
+                                            "function": {"name": "", "arguments": ""}
+                                        })
+                                    
+                                    if "id" in tool_call_delta:
+                                        tool_calls[idx]["id"] = tool_call_delta["id"]
+                                    if "function" in tool_call_delta:
+                                        if "name" in tool_call_delta["function"]:
+                                            tool_calls[idx]["function"]["name"] = tool_call_delta["function"]["name"]
+                                        if "arguments" in tool_call_delta["function"]:
+                                            tool_calls[idx]["function"]["arguments"] += tool_call_delta["function"]["arguments"]
+                        
+                    except (KeyError, json.JSONDecodeError) as e:
+                        if is_debug:
+                            print(f"\n[DEBUG] Error parsing chunk: {e}")
+                            print(f"[DEBUG] Raw chunk: {repr(chunk)}")
+        
+        # Validate and fix tool call arguments
+        for i, tool_call in enumerate(tool_calls):
+            if tool_call["function"]["arguments"]:
+                try:
+                    json.loads(tool_call["function"]["arguments"])
+                except json.JSONDecodeError as e:
+                    print(f"\n[WARNING] Tool call {i} has invalid JSON arguments")
+                    if os.getenv("GROK_DEBUG"):
+                        print(f"[DEBUG] Raw arguments: {repr(tool_call['function']['arguments'])}")
+                    args = tool_call["function"]["arguments"]
+                    if args.count('{') > args.count('}'):
+                        depth = 0
+                        last_complete = -1
+                        for j, char in enumerate(args):
+                            if char == '{':
+                                depth += 1
+                            elif char == '}':
+                                depth -= 1
+                                if depth == 0:
+                                    last_complete = j
+                        if last_complete > 0:
+                            tool_call["function"]["arguments"] = args[:last_complete + 1]
+                            if os.getenv("GROK_DEBUG"):
+                                print(f"[DEBUG] Fixed arguments: {tool_call['function']['arguments']}")
+        
+        print()  # New line after streaming
+        return "".join(full_content), tool_calls
+    
+    def execute_tool_call(self, tool_call: Dict[str, Any], brave_api_key: Optional[str] = None) -> Dict[str, Any]:
         """Execute a tool call with optimization and caching."""
         function_name = tool_call["function"]["name"]
         
@@ -169,7 +242,7 @@ class OptimizedGrokCLI:
             else:
                 return {"error": f"Invalid JSON in tool arguments: {str(e)}"}
         
-        # Execute the optimized tool call
+        # Execute the tool function
         return self._execute_tool_function(function_name, arguments, brave_api_key)
     
     def _execute_tool_function(self, function_name: str, arguments: Dict[str, Any], brave_api_key: Optional[str] = None) -> Dict[str, Any]:
@@ -275,9 +348,9 @@ class OptimizedGrokCLI:
                     return True
         return False
     
-    def api_call_optimized(self, key: str, messages: List[Dict[str, Any]], model: str, 
-                          stream: bool, tools: Optional[List[Dict[str, Any]]] = None, 
-                          retry_count: int = 0) -> requests.Response:
+    def api_call(self, key: str, messages: List[Dict[str, Any]], model: str, 
+                 stream: bool, tools: Optional[List[Dict[str, Any]]] = None, 
+                 retry_count: int = 0) -> requests.Response:
         """Make an API call with advanced rate limiting."""
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         data = {"messages": messages, "model": model, "stream": stream}
@@ -287,7 +360,7 @@ class OptimizedGrokCLI:
             data["tool_choice"] = "auto"
         
         # Calculate adaptive delay based on recent activity
-        time_since_last = time.time() - self.request_manager.last_request_time
+        time_since_last = time.time() - self.last_request_time
         if time_since_last < 1.0:  # If less than 1 second, wait a bit
             delay = 1.0 - time_since_last
             print(f"⏱️ Pacing request... ({delay:.1f}s)")
@@ -304,7 +377,7 @@ class OptimizedGrokCLI:
         try:
             response = requests.post(API_URL, headers=headers, json=data, stream=stream, timeout=(10, 60))
             response.raise_for_status()
-            self.request_manager.last_request_time = time.time()
+            self.last_request_time = time.time()
             return response
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
@@ -340,11 +413,115 @@ class OptimizedGrokCLI:
                     time.sleep(0.1)
                 print(" " * 50, end="\r")
                 
-                return self.api_call_optimized(key, messages, model, stream, tools, retry_count)
+                return self.api_call(key, messages, model, stream, tools, retry_count)
             else:
                 raise e
         except requests.exceptions.RequestException as e:
             sys.exit(f"API Error: {e}")
+    
+    def run_chat_loop(self, args, key: str, brave_key: Optional[str], messages: List[Dict[str, Any]]) -> None:
+        """Core loop for processing messages and tool calls."""
+        max_iterations = 10
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            response = self.api_call(key, messages, args.model, args.stream, self.tools)
+            
+            if args.stream:
+                assistant_content, tool_calls = self.handle_stream_with_tools(response, brave_key, debug_mode=args.debug)
+                
+                if not tool_calls:
+                    if iteration == 1 and assistant_content:
+                        pass  # Normal response, no tools needed
+                    return
+                
+                print("\n[Executing tool calls...]")
+                messages.append({"role": "assistant", "content": assistant_content or None, "tool_calls": tool_calls})
+                
+                # Execute tool calls using request manager
+                for tool_call in tool_calls:
+                    self.request_manager.add_request(
+                        tool_call['function']['name'],
+                        json.loads(tool_call['function']['arguments']),
+                        priority=RequestPriority.MEDIUM
+                    )
+                
+                results = asyncio.run(self.request_manager.process_queue())
+                
+                # Process tool call results
+                tool_call_failures = 0
+                for tool_call in tool_calls:
+                    result_key = next((k for k in results if tool_call['function']['name'] in k), None)
+                    result = results.get(result_key, {"error": "Tool execution result not found"})
+
+                    if "error" in result:
+                        tool_call_failures += 1
+                        print(f"[WARNING] Tool call failed: {result['error']}")
+                    
+                    is_debug = args.debug if args.debug is not None else bool(os.getenv("GROK_DEBUG"))
+                    if is_debug:
+                        print(f"Tool result: {json.dumps(result, indent=2)}")
+                    
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": json.dumps(result)
+                    })
+                
+                if tool_call_failures == len(tool_calls):
+                    print("\n[ERROR] All tool calls failed. Asking Grok to retry...")
+                    messages.append({
+                        "role": "user",
+                        "content": "The previous tool calls failed due to invalid arguments. Please try again with properly formatted JSON arguments."
+                    })
+                
+                print("\n[Getting response...]")
+                
+            else:
+                # Non-streaming mode
+                response_json = response.json()
+                message = response_json["choices"][0]["message"]
+                
+                if "tool_calls" not in message:
+                    if "content" in message and message["content"]:
+                        print(message["content"])
+                    return
+                
+                if "content" in message and message["content"]:
+                    print(message["content"])
+                
+                print("\n[Executing tool calls...]")
+                messages.append(message)
+                
+                # Execute tool calls
+                for tool_call in message["tool_calls"]:
+                    self.request_manager.add_request(
+                        tool_call['function']['name'],
+                        json.loads(tool_call['function']['arguments']),
+                        priority=RequestPriority.MEDIUM
+                    )
+
+                results = asyncio.run(self.request_manager.process_queue())
+
+                for tool_call in message["tool_calls"]:
+                    result_key = next((k for k in results if tool_call['function']['name'] in k), None)
+                    result = results.get(result_key, {"error": "Tool execution result not found"})
+
+                    is_debug = args.debug if args.debug is not None else bool(os.getenv("GROK_DEBUG"))
+                    if is_debug:
+                        print(f"Tool result: {json.dumps(result, indent=2)}")
+                    
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": json.dumps(result)
+                    })
+                
+                print("\n[Getting response...]")
+        
+        if iteration >= max_iterations:
+            print("\n[Warning: Maximum iterations reached]")
     
     def display_startup_message(self):
         """Display an optimized startup message."""
@@ -365,6 +542,3 @@ class OptimizedGrokCLI:
         status = self.request_manager.get_queue_status()
         if status["queue_length"] > 0 or status["cache_size"] > 0:
             print(f"📊 Queue: {status['queue_length']} | Cache: {status['cache_size']} items")
-
-# Export for use in main CLI
-optimized_cli = OptimizedGrokCLI()
