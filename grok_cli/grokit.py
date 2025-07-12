@@ -738,15 +738,15 @@ class GroKitGridIntegration:
         """Show help information."""
         help_msg = """GroKit Grid Commands
 
-Available Commands:
-/leader [objective] - Strategic planning mode
-/reasoning [prompt] - Deep reasoning mode  
-/paste - Paste content from clipboard
-/multi - Toggle multi-line input mode
-/costs - Show session cost summary
-/clear - Clear chat history
-/help - Show this help message
-/quit - Exit to main menu
+Available Commands:\n
+- /leader [objective] : Strategic planning mode 
+- /reasoning [prompt] : Deep reasoning mode 
+- /paste              : Paste content from clipboard 
+- /multi              : Toggle multi-line input mode 
+- /costs              : Show session cost summary 
+- /clear              : Clear chat history 
+- /help               : Show this help message 
+- /quit               : Exit to main menu 
 
 Tips:
 - Start typing to chat with Grok
