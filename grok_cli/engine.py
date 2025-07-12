@@ -22,6 +22,7 @@ except ImportError:
 from .request_manager import RequestManager, RequestPriority
 from .utils import get_random_message, load_grok_context, create_grok_directory_template
 from .tokenCount import TokenCounter
+from .tool_output_capture import ToolOutputCapture, EnhancedToolExecutor
 
 # xAI API endpoint - using v1 path (OpenAI compatible)
 API_URL = "https://api.x.ai/v1/chat/completions"
@@ -32,7 +33,7 @@ REASONING_MODELS = {
 }
 SYSTEM_PROMPT = """You are Grok, a helpful and truthful AI built by xAI. You have FULL ACCESS to the local filesystem and can perform any file operations needed.
 
-🔧 AVAILABLE TOOLS - YOU CAN USE THESE:
+ AVAILABLE TOOLS - YOU CAN USE THESE:
 - read_file: Read any file on the local filesystem
 - create_file: Create new files with content
 - list_files_recursive: List directory contents recursively
@@ -40,14 +41,14 @@ SYSTEM_PROMPT = """You are Grok, a helpful and truthful AI built by xAI. You hav
 - shell_command: Execute shell commands (cat, echo, touch, mkdir, rm, cd, ls, pwd)
 - brave_search: Search the web for information
 
-🖥️ FILESYSTEM ACCESS:
+ FILESYSTEM ACCESS:
 - You CAN read, write, create, and modify files
 - You CAN examine directory structures and file contents  
 - You CAN create new files and directories
 - You ARE working within the source directory boundary for security
 - You SHOULD use tools to investigate issues and implement solutions
 
-❌ NEVER SAY YOU CAN'T ACCESS FILES - You have full MCP tool access!
+ NEVER SAY YOU CAN'T ACCESS FILES - You have full MCP tool access!
 
 IMPORTANT INSTRUCTIONS:
 - When asked to examine code, diagnose issues, or make changes - USE THE TOOLS
@@ -56,7 +57,7 @@ IMPORTANT INSTRUCTIONS:
 - Always investigate before responding with generic advice
 - Use batch_read_files for efficiency when examining multiple related files
 
-🗂️ PROJECT STRUCTURE GUIDE:
+ PROJECT STRUCTURE GUIDE:
 This is the grok-cli project. Key files are located in:
 - Main package: grok_cli/ directory contains all Python modules
 - Grid UI system: grok_cli/grokit.py (main Grid UI integration)
@@ -72,6 +73,47 @@ Tool Usage:
 - File operations are cached to avoid redundant reads
 - Multiple tool calls are automatically optimized"""
 
+class EnhancedToolExecutor:
+    """Enhanced tool executor with output capture support."""
+    
+    def __init__(self, engine=None):
+        self.tool_output_capture = ToolOutputCapture()
+        self.engine = engine
+        
+    def execute_with_capture(self, tool_name: str, args: Dict[str, Any], brave_api_key: Optional[str] = None) -> Tuple[Dict[str, Any], Optional[str]]:
+        """Execute a tool with output capture enabled."""
+        self.tool_output_capture.start_capture()
+        
+        try:
+            # Track file state before execution for diff generation
+            if tool_name in ['create_file', 'str_replace']:
+                if 'filename' in args:
+                    self.tool_output_capture.track_file_before(args['filename'])
+            
+            # Execute the tool with brave_api_key if needed
+            result = self._execute_tool(tool_name, args, brave_api_key)
+            
+            # Stop capture and get output
+            captured_output = self.tool_output_capture.stop_capture()
+            
+            # Format output including any diffs
+            formatted_output = self.tool_output_capture.format_output(captured_output)
+            
+            return result, formatted_output
+            
+        except Exception as e:
+            # Ensure capture is stopped even on error
+            self.tool_output_capture.stop_capture()
+            return {"error": str(e)}, None
+    
+    def _execute_tool(self, tool_name: str, args: Dict[str, Any], brave_api_key: Optional[str] = None) -> Dict[str, Any]:
+        """Execute the actual tool using the engine's implementation."""
+        if self.engine:
+            # Call the engine's internal tool execution method
+            return self.engine._execute_tool_internal(tool_name, args, brave_api_key)
+        else:
+            return {"error": "No engine instance available for tool execution"}
+
 class GrokEngine:
     """Core engine for Grok CLI with advanced features."""
     
@@ -85,6 +127,8 @@ class GrokEngine:
         self.token_counter = None
         self.cost_tracking_enabled = False
         self.xai_client = None
+        self.tool_output_capture = ToolOutputCapture()
+        self.enhanced_executor = EnhancedToolExecutor(self)
         
     def load_config(self) -> Dict[str, Any]:
         """Load configuration from settings.json."""
@@ -301,10 +345,11 @@ class GrokEngine:
         
         return tools
     
-    def handle_stream_with_tools(self, response, brave_api_key=None, debug_mode=None) -> Tuple[str, List[Dict]]:
+    def handle_stream_with_tools(self, response, brave_api_key=None, debug_mode=None, capture_tools=False) -> Tuple[str, List[Dict], Optional[str]]:
         """Handle streaming response with tool call detection."""
         full_content = []
         tool_calls = []
+        tool_outputs = []  # Collect tool outputs for Grid UI
         
         is_debug = debug_mode if debug_mode is not None else bool(os.getenv("GROK_DEBUG"))
         
@@ -371,115 +416,138 @@ class GrokEngine:
                                 print(f"[DEBUG] Fixed arguments: {tool_call['function']['arguments']}")
         
         print()  # New line after streaming
-        return "".join(full_content), tool_calls
+        return "".join(full_content), tool_calls, None  # No tool outputs yet
     
-    def execute_tool_call(self, tool_call: Dict[str, Any], brave_api_key: Optional[str] = None) -> Dict[str, Any]:
+    def execute_tool_call(self, tool_call: Dict[str, Any], brave_api_key: Optional[str] = None, capture_output: bool = False) -> Dict[str, Any]:
         """Execute a tool call with optimization and caching."""
-        function_name = tool_call["function"]["name"]
+        tool_name = tool_call['function']['name']
         
-        try:
-            arguments = json.loads(tool_call["function"]["arguments"])
-        except json.JSONDecodeError as e:
-            # Handle concatenated JSON (gracefully extract first valid JSON)
-            raw_args = tool_call["function"]["arguments"]
-            if "}{" in raw_args:
-                first_obj_end = raw_args.find("}") + 1
-                if first_obj_end > 0:
-                    try:
-                        arguments = json.loads(raw_args[:first_obj_end])
-                        print(f"[INFO] Extracted first operation from batched request")
-                    except json.JSONDecodeError:
-                        return {"error": f"Invalid JSON in tool arguments: {str(e)}"}
-                else:
-                    return {"error": f"Invalid JSON in tool arguments: {str(e)}"}
-            else:
-                return {"error": f"Invalid JSON in tool arguments: {str(e)}"}
+        # Parse arguments, handling empty strings
+        args_str = tool_call['function']['arguments']
+        if not args_str or args_str.strip() == '':
+            args = {}
+        else:
+            try:
+                args = json.loads(args_str)
+            except json.JSONDecodeError as e:
+                return {"error": f"Invalid JSON arguments: {e}"}
         
-        # Execute the tool function
-        return self._execute_tool_function(function_name, arguments, brave_api_key)
-    
-    def _execute_tool_function(self, function_name: str, arguments: Dict[str, Any], brave_api_key: Optional[str] = None) -> Dict[str, Any]:
-        """Execute the actual tool function."""
-        try:
-            if function_name == "brave_search":
-                if not brave_api_key:
-                    return {"error": "Brave Search API key not configured"}
-                
-                headers = {"X-Subscription-Token": brave_api_key}
-                params = {"q": arguments["query"]}
-                response = requests.get(
-                    "https://api.search.brave.com/res/v1/web/search", 
-                    headers=headers, 
-                    params=params, 
-                    timeout=10
-                )
-                response.raise_for_status()
-                return response.json()
+        # Execute with capture if enabled
+        if capture_output and self.enhanced_executor:
+            result, captured_output = self.enhanced_executor.execute_with_capture(tool_name, args, brave_api_key)
+            if captured_output:
+                result["_captured_output"] = captured_output
+            return result
             
-            elif function_name == "read_file":
-                filename = arguments["filename"]
+        # Direct execution without capture
+        return self._execute_tool_internal(tool_name, args, brave_api_key)
+    
+    def _execute_tool_internal(self, function_name: str, arguments: Dict[str, Any], brave_api_key: Optional[str] = None) -> Dict[str, Any]:
+        """Internal tool execution logic."""
+        # Handle different tools
+        if function_name == "brave_search":
+            if not brave_api_key:
+                return {"error": "Brave Search API key not configured"}
+            
+            headers = {"X-Subscription-Token": brave_api_key}
+            params = {"q": arguments["query"]}
+            response = requests.get(
+                "https://api.search.brave.com/res/v1/web/search", 
+                headers=headers, 
+                params=params, 
+                timeout=10
+            )
+            response.raise_for_status()
+            return response.json()
+        
+        elif function_name == "read_file":
+            filename = arguments["filename"]
+            if os.path.exists(filename):
+                with open(filename, "r", encoding="utf-8") as f:
+                    content = f.read()
+                return {"success": True, "content": content}
+            else:
+                return {"error": f"File '{filename}' not found"}
+        
+        elif function_name == "batch_read_files":
+            filenames = arguments["filenames"]
+            results = {}
+            for filename in filenames:
                 if os.path.exists(filename):
-                    with open(filename, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    return {"success": True, "content": content}
+                    try:
+                        with open(filename, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        results[filename] = {"success": True, "content": content}
+                    except Exception as e:
+                        results[filename] = {"error": str(e)}
                 else:
-                    return {"error": f"File '{filename}' not found"}
+                    results[filename] = {"error": f"File '{filename}' not found"}
+            return {"success": True, "results": results}
+        
+        elif function_name == "list_files_recursive":
+            directory = arguments["directory"]
+            patterns = self._load_gitignore_patterns()
+            all_files = []
             
-            elif function_name == "batch_read_files":
-                filenames = arguments["filenames"]
-                results = {}
-                for filename in filenames:
-                    if os.path.exists(filename):
-                        try:
-                            with open(filename, "r", encoding="utf-8") as f:
-                                content = f.read()
-                            results[filename] = {"success": True, "content": content}
-                        except Exception as e:
-                            results[filename] = {"error": str(e)}
-                    else:
-                        results[filename] = {"error": f"File '{filename}' not found"}
-                return {"success": True, "results": results}
+            for root, dirs, files in os.walk(directory):
+                # Remove ignored directories
+                dirs[:] = [d for d in dirs if not self._should_ignore(os.path.join(root, d), patterns)]
+                
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, directory)
+                    
+                    if not self._should_ignore(relative_path, patterns):
+                        all_files.append(relative_path)
             
-            elif function_name == "list_files_recursive":
-                directory = arguments.get("directory", ".")
-                files = self._list_files_recursive_impl(directory)
-                return {"success": True, "files": files, "count": len(files)}
+            return {"success": True, "files": all_files}
+        
+        elif function_name == "create_file":
+            filename = arguments["filename"]
+            content = arguments.get("content", "")
             
-            elif function_name == "create_file":
-                filename = arguments["filename"]
-                content = arguments.get("content", "")
+            # Security check - ensure file is within source directory
+            abs_path = os.path.abspath(filename)
+            if not abs_path.startswith(os.path.abspath(self.source_directory)):
+                return {"error": "Cannot create file outside source directory"}
+            
+            # Create directory if needed
+            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+            
+            # Write file
+            with open(abs_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            
+            return {"success": True, "message": f"Created file '{filename}'"}
+        
+        elif function_name == "str_replace":
+            filename = arguments["filename"]
+            old_str = arguments["old_str"]
+            new_str = arguments["new_str"]
+            
+            if not os.path.exists(filename):
+                return {"error": f"File '{filename}' not found"}
+            
+            # Read file content
+            with open(filename, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            # Replace string
+            if old_str in content:
+                new_content = content.replace(old_str, new_str)
                 with open(filename, "w", encoding="utf-8") as f:
-                    f.write(content)
-                return {"success": True, "message": f"File '{filename}' created successfully"}
-            
-            elif function_name == "shell_command":
-                command = arguments["command"]
-                args = arguments.get("args", [])
-                return self._execute_shell_command(command, args)
-            
+                    f.write(new_content)
+                return {"success": True, "message": f"Replaced string in '{filename}'"}
             else:
-                return {"error": f"Unknown function: {function_name}"}
-                
-        except Exception as e:
-            return {"error": str(e)}
-    
-    def _list_files_recursive_impl(self, directory: str = ".") -> List[str]:
-        """List files recursively, respecting .gitignore."""
-        patterns = self._load_gitignore_patterns()
-        all_files = []
+                return {"error": f"String '{old_str}' not found in file"}
         
-        for root, dirs, files in os.walk(directory):
-            # Remove ignored directories
-            dirs[:] = [d for d in dirs if not self._should_ignore(os.path.join(root, d), patterns)]
-            
-            for file in files:
-                file_path = os.path.join(root, file)
-                relative_path = os.path.relpath(file_path, directory)
-                
-                if not self._should_ignore(relative_path, patterns):
-                    all_files.append(relative_path)
+        elif function_name == "run_shell":
+            command = arguments["command"]
+            args = arguments.get("args", [])
+            return self._execute_shell_command(command, args)
         
-        return all_files
+        else:
+            return {"error": f"Unknown tool: {function_name}"}
     
     def _load_gitignore_patterns(self) -> List[str]:
         """Load patterns from .gitignore file."""
@@ -917,7 +985,7 @@ class GrokEngine:
             is_sdk_response = hasattr(response, 'sdk_response')
             
             if args.stream and not is_sdk_response:
-                assistant_content, tool_calls = self.handle_stream_with_tools(response, brave_key, debug_mode=args.debug)
+                assistant_content, tool_calls, _ = self.handle_stream_with_tools(response, brave_key, debug_mode=args.debug)
                 
                 # For streaming, estimate token usage since it's not provided in the stream
                 if self.cost_tracking_enabled and self.token_counter and assistant_content:
@@ -956,13 +1024,22 @@ class GrokEngine:
                 
                 # Execute tool calls directly
                 tool_call_failures = 0
+                all_tool_outputs = []  # Collect all tool outputs for Grid UI
+                
                 for i, tool_call in enumerate(tool_calls, 1):
                     tool_name = tool_call['function']['name']
                     print(f"  >> Getting {tool_name} from the toolchest ({i}/{len(tool_calls)})")
                     print(f"     {get_random_message('thinking')}")
                     
                     try:
-                        result = self.execute_tool_call(tool_call, brave_key)
+                        # Execute with output capture for Grid UI
+                        result = self.execute_tool_call(tool_call, brave_key, capture_output=True)
+                        
+                        # Extract captured output if present
+                        if "_captured_output" in result:
+                            captured = result.pop("_captured_output")
+                            if captured:
+                                all_tool_outputs.append(captured)
                         
                         if "error" in result:
                             tool_call_failures += 1

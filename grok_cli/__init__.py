@@ -9,7 +9,7 @@ Features:
 - Optimized performance with request batching and caching
 """
 
-__version__ = "2025.1.0.a8"
+__version__ = "2025.1.0.a9"
 __author__ = "Grok CLI Team"
 __email__ = "oss@scratchpost.ai"
 __license__ = "GPL-3.0"

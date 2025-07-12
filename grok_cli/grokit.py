@@ -566,10 +566,19 @@ class GroKitGridIntegration:
                         return response.content if response.content else "I apologize, but I couldn't generate a response."
                 elif args.stream:
                     # Handle streaming response (requests) with real-time cost updates
-                    assistant_content, tool_calls = self.engine.handle_stream_with_tools(response, brave_key, debug_mode=args.debug)
+                    assistant_content, tool_calls, tool_outputs = self.engine.handle_stream_with_tools(
+                        response, brave_key, debug_mode=args.debug, capture_tools=True
+                    )
                     
                     # Update cost display after streaming completes
                     self._update_cost_display()
+                    
+                    # If we have tool outputs (including diffs), append them to the response
+                    if tool_outputs:
+                        if assistant_content:
+                            return f"{assistant_content}\n\n{tool_outputs}"
+                        else:
+                            return tool_outputs
                     
                     return assistant_content if assistant_content else "I apologize, but I couldn't generate a response."
                 else:
