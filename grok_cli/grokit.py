@@ -15,7 +15,7 @@ from .engine import GrokEngine
 from .leader import LeaderFollowerOrchestrator
 from .input_handler import MultiLineInputHandler, GroKitInterface
 from .grid_ui import GridRenderer, VersionManager
-from .persistence import PersistentStorage
+from .persistence import PersistentStorage, ConversationStorage, CostTracker
 from .enhanced_input import EnhancedInputHandler
 
 
@@ -302,22 +302,31 @@ class GroKitUI(GroKitInterface):
 class GroKitGridIntegration:
     """Integration class for the grid UI within GroKit."""
     
-    def __init__(self, src_path: str):
+    def __init__(self, src_path: str = "."):
+        """Initialize the Grid UI integration."""
         self.src_path = src_path
+        self.running = True
         
-        # Initialize grid UI components
+        # Initialize components
         self.renderer = GridRenderer()
-        self.version_manager = VersionManager(self.src_path)
-        self.storage = PersistentStorage(self.src_path)
-        self.enhanced_input = EnhancedInputHandler(on_status_update=self._update_status)
+        self.storage = ConversationStorage()
+        self.cost_tracker = CostTracker()
         
-        # Initialize AI engine and tools
+        # Initialize enhanced input with callback for real-time updates
+        self.enhanced_input = EnhancedInputHandler(
+            on_char_update=self._on_input_update
+        )
+        
+        # Initialize AI engine
         self.engine = GrokEngine()
         self.engine.set_source_directory(self.src_path)
         self.token_counter = None
         
+        # Version manager
+        self.version_mgr = VersionManager(os.path.dirname(os.path.dirname(__file__)))
+        self.renderer.update_header(version=self.version_mgr.get_version())
+        
         # UI state
-        self.running = True
         self.status_message = "Ready"
         self.cost_display = "$0.0000"
         self.tokens_display = "0"
@@ -325,10 +334,13 @@ class GroKitGridIntegration:
         # Setup UI
         self._setup_ui()
         self._enable_cost_tracking()
+        
+        # Load conversation history
+        self._load_conversation_history()
     
     def _setup_ui(self):
         """Initialize the UI with header and initial content."""
-        version = self.version_manager.get_version()
+        version = self.version_mgr.get_version()
         self.renderer.update_header(
             title="GROKIT",
             subtitle="Enhanced Grid Interface",
@@ -595,6 +607,11 @@ class GroKitGridIntegration:
                 
         except Exception as e:
             return f"Error in AI response system: {str(e)}"
+    
+    def _on_input_update(self, text: str, cursor_pos: int):
+        """Callback for real-time input updates."""
+        self.renderer.update_input(text, cursor_pos)
+        sys.stdout.flush()
     
     def run(self):
         """Main run loop for Grid UI."""

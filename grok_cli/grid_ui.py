@@ -237,15 +237,38 @@ class GridRenderer:
         input_y = self.height - self.input_height - self.status_height
         self.draw_box(1, input_y, self.width - 2, self.input_height, title="USER INPUT", color="green")
         
+        # Clear the input line first
+        self.move_cursor(input_y + 1, 3)
+        print(" " * (self.width - 6), end="")
+        
         # Input text content
         self.move_cursor(input_y + 1, 3)
-        input_text = self.input_content['text']
-        display_text = input_text[:self.width - 6]  # Truncate if too long
+        input_text = self.input_content.get('text', '')
+        cursor_pos = self.input_content.get('cursor_pos', 0)
+        
+        # Handle text that's longer than display width
+        display_width = self.width - 6
+        if len(input_text) > display_width:
+            # Scroll text to keep cursor visible
+            if cursor_pos < display_width - 10:
+                # Cursor near start, show beginning
+                display_text = input_text[:display_width]
+                display_cursor_pos = cursor_pos
+            else:
+                # Cursor further along, scroll to show cursor
+                start = max(0, cursor_pos - display_width + 10)
+                display_text = input_text[start:start + display_width]
+                display_cursor_pos = cursor_pos - start
+        else:
+            display_text = input_text
+            display_cursor_pos = cursor_pos
+        
+        # Print the text
         print(f"{self.colors['end']}{display_text}{self.colors['end']}", end="")
         
-        # Show cursor position if text is visible
-        if len(input_text) < self.width - 6:
-            cursor_x = 3 + len(display_text)
+        # Show cursor at correct position
+        if display_cursor_pos <= len(display_text):
+            cursor_x = 3 + display_cursor_pos
             self.move_cursor(input_y + 1, cursor_x)
             print(f"{self.colors['bg_green']} {self.colors['end']}", end="")
     
@@ -268,6 +291,29 @@ class GridRenderer:
         self.move_cursor(status_y, cost_x)
         print(f"{self.colors['bg_blue']}{self.colors['yellow']}{cost_text}{self.colors['end']}", end="")
     
+    def update_input(self, text: str, cursor_pos: int):
+        """Update input content and re-render input area only."""
+        self.input_content['text'] = text
+        self.input_content['cursor_pos'] = cursor_pos
+        self.render_input_area()
+        
+        # Keep cursor in input area
+        input_y = self.height - self.input_height - self.status_height
+        display_width = self.width - 6
+        
+        # Calculate visible cursor position
+        if len(text) > display_width:
+            if cursor_pos < display_width - 10:
+                display_cursor_pos = cursor_pos
+            else:
+                start = max(0, cursor_pos - display_width + 10)
+                display_cursor_pos = cursor_pos - start
+        else:
+            display_cursor_pos = cursor_pos
+        
+        cursor_x = min(3 + display_cursor_pos, self.width - 3)
+        self.move_cursor(input_y + 1, cursor_x)
+    
     def render_full_screen(self):
         """Render the complete grid layout."""
         self.clear_screen()
@@ -276,8 +322,9 @@ class GridRenderer:
         self.render_input_area()
         self.render_status_bar()
         
-        # Position cursor at end
-        self.move_cursor(self.height, 1)
+        # Position cursor in input area
+        input_y = self.height - self.input_height - self.status_height
+        self.move_cursor(input_y + 1, 3)
         sys.stdout.flush()
     
     def update_header(self, title: str = None, subtitle: str = None, version: str = None):

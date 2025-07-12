@@ -8,6 +8,7 @@ import re
 import time
 from typing import Dict, List, Optional, Tuple, Callable, Any
 from .persistence import ClipboardHandler
+from .terminal_input import TerminalInputHandler
 
 
 class TextOptimizer:
@@ -132,10 +133,11 @@ class TextOptimizer:
 class EnhancedInputHandler:
     """Enhanced input handler with clipboard support, history, and grid UI integration."""
     
-    def __init__(self, on_status_update: Callable[[str], None] = None):
+    def __init__(self, on_status_update: Callable[[str], None] = None, on_char_update: Callable[[str, int], None] = None):
         self.clipboard = ClipboardHandler()
         self.text_optimizer = TextOptimizer()
         self.on_status_update = on_status_update or self._default_status_update
+        self.on_char_update = on_char_update  # For grid UI updates
         
         # Input state
         self.current_text = ""
@@ -162,6 +164,9 @@ class EnhancedInputHandler:
         # Undo stack
         self.undo_stack = []
         self.max_undo_stack = 20
+        
+        # Terminal input handler for real-time capture
+        self.terminal_input = None
     
     def _default_status_update(self, message: str):
         """Default status update handler."""
@@ -184,7 +189,16 @@ class EnhancedInputHandler:
         while True:
             try:
                 self.on_status_update("Single-line mode | /paste /multi /help")
-                user_input = input(prompt).strip()
+                
+                # Initialize terminal input handler if needed
+                if not self.terminal_input:
+                    self.terminal_input = TerminalInputHandler(on_char_update=self._handle_char_update)
+                
+                try:
+                    user_input = self.terminal_input.get_line(multiline=False).strip()
+                except AttributeError:
+                    # Fallback to standard input if terminal handler fails
+                    user_input = input(prompt).strip()
                 
                 # Handle special commands
                 if user_input in self.special_commands:
@@ -192,7 +206,11 @@ class EnhancedInputHandler:
                     if result:
                         continue
                     else:
-                        user_input = input(prompt).strip()
+                        # Get another input after command
+                        try:
+                            user_input = self.terminal_input.get_line(multiline=False).strip()
+                        except AttributeError:
+                            user_input = input(prompt).strip()
                 
                 # Handle commands with arguments
                 if user_input.startswith("/"):
@@ -221,6 +239,8 @@ class EnhancedInputHandler:
                     return optimized_text, metadata
                 
             except (KeyboardInterrupt, EOFError):
+                if self.terminal_input:
+                    self.terminal_input.cleanup()
                 return "/quit", {"cancelled": True}
     
     def _get_multiline_input(self, prompt: str) -> Tuple[str, Dict]:
@@ -420,15 +440,30 @@ class EnhancedInputHandler:
         print("  /undo      - Remove last line")
         print("  /help      - Show this help")
     
-    def get_current_state(self) -> Dict:
+    def _handle_char_update(self, text: str, cursor_pos: int):
+        """Handle character updates from terminal input."""
+        # Update internal state
+        self.current_text = text
+        self.cursor_position = cursor_pos
+        
+        # Notify grid UI if callback is set
+        if self.on_char_update:
+            self.on_char_update(text, cursor_pos)
+    
+    def get_current_state(self) -> Dict[str, Any]:
         """Get current input handler state."""
         return {
             "multiline_mode": self.multiline_mode,
-            "current_text": self.current_text,
-            "buffer_lines": self.buffer_lines,
-            "history_count": len(self.history),
-            "optimization_enabled": self.text_optimizer.optimizations_enabled
+            "optimization_enabled": self.text_optimizer.optimizations_enabled,
+            "history_size": len(self.history),
+            "undo_stack_size": len(self.undo_stack),
+            "clipboard_available": self.clipboard.is_available()
         }
+    
+    def cleanup(self):
+        """Cleanup resources."""
+        if self.terminal_input:
+            self.terminal_input.cleanup()
 
 
 # Test the enhanced input handler
