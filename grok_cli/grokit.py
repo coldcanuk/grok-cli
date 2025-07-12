@@ -588,10 +588,7 @@ class GroKitGridIntegration:
         """Process special GroKit commands."""
         command = user_input.strip().lower()
         
-        # Debug: Log the command being processed
-        import logging
-        logging.basicConfig(level=logging.DEBUG)
-        logging.debug(f"Processing command: '{command}' from input: '{user_input}'")
+        # Command processing - no debug output to terminal
         
         if command == "/quit" or command == "/exit":
             self.running = False
@@ -629,7 +626,7 @@ class GroKitGridIntegration:
                 self._execute_reasoning_mode(prompt)
             return None
         
-        elif command == "/costs":
+        elif command == "/costs" or command == "/cost":
             self._show_cost_summary()
             return None
         
@@ -1073,6 +1070,10 @@ class GroKitGridIntegration:
                     # Process special commands
                     processed_input = self._process_special_commands(user_input)
                     if processed_input is None:
+                        # Command was handled, ensure we render any updates
+                        self.renderer.render_ai_window()
+                        self.renderer.render_status_bar()
+                        sys.stdout.flush()
                         continue
                     
                     # Step 1: Clear input area immediately and add user message to chat
