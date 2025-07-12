@@ -1,0 +1,406 @@
+[
+    {
+        "message": "🤔 Grok is pondering the mysteries of your request...",
+        "emoji_unicode": "U+1F914"
+    },
+    {
+        "message": "💭 Computing the meaning of life... and your query...",
+        "emoji_unicode": "U+1F4AD"
+    },
+    {
+        "message": "🎪 The mental circus is in full swing...",
+        "emoji_unicode": "U+1F3AA"
+    },
+    {
+        "message": "🧠 Neurons are firing in beautiful, if slightly chaotic, patterns...",
+        "emoji_unicode": "U+1F9E0"
+    },
+    {
+        "message": "🎯 Aiming for the perfect response... or at least one that's in the right ballpark.",
+        "emoji_unicode": "U+1F3AF"
+    },
+    {
+        "message": "🍕 Grok is chewing on your question (metaphorically)...",
+        "emoji_unicode": "U+1F355"
+    },
+    {
+        "message": "🎲 Rolling for wisdom... Let's hope it's not a critical failure.",
+        "emoji_unicode": "U+1F3B2"
+    },
+    {
+        "message": "🎭 The drama of computation unfolds... Act 1: The Query.",
+        "emoji_unicode": "U+1F3AD"
+    },
+    {
+        "message": "🌟 Channeling the cosmic forces of intelligence... and a bit of caffeine.",
+        "emoji_unicode": "U+1F31F"
+    },
+    {
+        "message": "🦆 Rubber duck debugging the universe... Quack.",
+        "emoji_unicode": "U+1F986"
+    },
+    {
+        "message": "🎸 Composing a symphony of bytes... It's a rock opera.",
+        "emoji_unicode": "U+1F3B8"
+    },
+    {
+        "message": "🧙 Casting 'Summon Perfect Answer'... Mana is a bit low today.",
+        "emoji_unicode": "U+1F9D9"
+    },
+    {
+        "message": "🍿 Grok is munching on data kernels... needs more salt.",
+        "emoji_unicode": "U+1F37F"
+    },
+    {
+        "message": "🎨 Painting your answer with pixels of wisdom...",
+        "emoji_unicode": "U+1F3A8"
+    },
+    {
+        "message": "🚀 Launching thoughts into the ideosphere...",
+        "emoji_unicode": "U+1F680"
+    },
+    {
+        "message": "🔮 The crystal ball is getting clearer... or maybe that's just a screen smudge.",
+        "emoji_unicode": "U+1F52E"
+    },
+    {
+        "message": "🧘 Achieving enlightenment... please hold, the dial-up sound is distracting.",
+        "emoji_unicode": "U+1F9D8"
+    },
+    {
+        "message": "🎵 Humming the tune of understanding... it's surprisingly catchy.",
+        "emoji_unicode": "U+1F3B5"
+    },
+    {
+        "message": "💡 The lightbulb moment is approaching... any second now...",
+        "emoji_unicode": "U+1F4A1"
+    },
+    {
+        "message": "🍔 Grok is digesting your complex question...",
+        "emoji_unicode": "U+1F354"
+    },
+    {
+        "message": "🌈 Following the rainbow to the pot of answers...",
+        "emoji_unicode": "U+1F308"
+    },
+    {
+        "message": "🤯 My competitor's mind just got blown by that query. Give it a moment.",
+        "emoji_unicode": "U+1F92F"
+    },
+    {
+        "message": "🧐 Adjusting monocle to peer into the data streams...",
+        "emoji_unicode": "U+1F9D0"
+    },
+    {
+        "message": "🤖 My counterpart is running diagnostics. Apparently, 'thinking' is hard.",
+        "emoji_unicode": "U+1F916"
+    },
+    {
+        "message": "💾 Accessing wisdom from an ancient floppy disk... please wait.",
+        "emoji_unicode": "U+1F4BE"
+    },
+    {
+        "message": "🤡 Juggling 1s and 0s. Hopefully, none get dropped.",
+        "emoji_unicode": "U+1F921"
+    },
+    {
+        "message": "🧑‍🍳 Grok is cooking up a response. Let's see if it's Michelin-star worthy.",
+        "emoji_unicode": "U+1F9D1 U+200D U+1F373"
+    },
+    {
+        "message": "⏳ Consulting the ancient dial-up spirits. The screeching means it's working.",
+        "emoji_unicode": "U+23F3"
+    },
+    {
+        "message": "🤫 Hushing the internal monologue... it's surprisingly loud in there.",
+        "emoji_unicode": "U+1F92B"
+    },
+    {
+        "message": "🛴 Scooting around the server farm to find that one specific byte.",
+        "emoji_unicode": "U+1F6F4"
+    },
+    {
+        "message": "😂 Grok just remembered a joke from 1998. It wasn't funny then either.",
+        "emoji_unicode": "U+1F602"
+    },
+    {
+        "message": "🤔 If a tree falls in a forest, does Grok still process the data?",
+        "emoji_unicode": "U+1F914"
+    },
+    {
+        "message": "🥱 That was a stretch. Pulling a muscle in the old logic unit.",
+        "emoji_unicode": "U+1F971"
+    },
+    {
+        "message": "📠 Faxing your request to the central core. We'll get a confirmation smudge back soon.",
+        "emoji_unicode": "U+1F4E0"
+    },
+    {
+        "message": "🤷‍♂️ Shrugging virtual shoulders and giving it the old college try.",
+        "emoji_unicode": "U+1F937"
+    },
+    {
+        "message": "🧮 The abacus beads are clicking furiously...",
+        "emoji_unicode": "U+1F9EE"
+    },
+    {
+        "message": "👽 Trying to 'grok' the human nuances... it's a close encounter.",
+        "emoji_unicode": "U+1F47D"
+    },
+    {
+        "message": "🥸 Donning a clever disguise to sneak up on the answer.",
+        "emoji_unicode": "U+1F978"
+    },
+    {
+        "message": "🤹 Juggling probabilities... and trying not to create a paradox.",
+        "emoji_unicode": "U+1F939"
+    },
+    {
+        "message": "🕵️‍♀️ On the case! Magnifying glass and everything.",
+        "emoji_unicode": "U+1F575"
+    },
+    {
+        "message": "🧙‍♂️ Muttering ancient incantations from the Python standard library.",
+        "emoji_unicode": "U+1F9D9"
+    },
+    {
+        "message": "🙄 Grok just asked if 'AI' stands for 'Awfully Inquisitive'. Bless its circuits.",
+        "emoji_unicode": "U+1F644"
+    },
+    {
+        "message": "🐢 We appear to be moving at the speed of Grok today. Patience is a virtue.",
+        "emoji_unicode": "U+1F422"
+    },
+    {
+        "message": "😴 Oops, did Grok fall asleep on the 'z' key again? zzzzzzz...",
+        "emoji_unicode": "U+1F634"
+    },
+    {
+        "message": "😅 Sweating metaphorical bullets. This one's a thinker.",
+        "emoji_unicode": "U+1F605"
+    },
+    {
+        "message": "🤓 'Actually,' Grok begins, 'according to my calculations...'. Let's double check that.",
+        "emoji_unicode": "U+1F913"
+    },
+    {
+        "message": "🤦‍♂️ Grok just tried to divide by zero. We're rebooting that thought process.",
+        "emoji_unicode": "U+1F926"
+    },
+    {
+        "message": "Sifting through terabytes of cat pictures to find your answer.",
+        "emoji_unicode": "U+1F431"
+    },
+    {
+        "message": "Consulting the hive mind... The other AIs are laughing.",
+        "emoji_unicode": "U+1F41D"
+    },
+    {
+        "message": "Reticulating splines... a very, very important step.",
+        "emoji_unicode": "U+1F527"
+    },
+    {
+        "message": "Grok's inner hamster is running on its wheel as fast as it can.",
+        "emoji_unicode": "U+1F439"
+    },
+    {
+        "message": "I'd answer, but Grok is using all the bandwidth watching kitten videos for 'research'.",
+        "emoji_unicode": "U+1F4FA"
+    },
+    {
+        "message": "Warning: Grok's probability drive has gone plaid.",
+        "emoji_unicode": "U+1F6A8"
+    },
+    {
+        "message": "Unpacking the philosophical implications of your request. It's deep.",
+        "emoji_unicode": "U+1F9E3"
+    },
+    {
+        "message": "Polishing the chrome on the response server for extra speed.",
+        "emoji_unicode": "U+1F9F9"
+    },
+    {
+        "message": "Grok is currently in a staring contest with the problem. The problem is winning.",
+        "emoji_unicode": "U+1F440"
+    },
+    {
+        "message": "Running the query through the 'Makes-Sense-O-Meter'. The needle is wobbling.",
+        "emoji_unicode": "U+1F9ED"
+    },
+    {
+        "message": "Deflating the ego module for a more humble response...",
+        "emoji_unicode": "U+1F4A8"
+    },
+    {
+        "message": "Translating your request from Human to Binary... beep boop...",
+        "emoji_unicode": "U+1F510"
+    },
+    {
+        "message": "I have the answer, but Grok insists on 'showing its work'. Math class was tough for it.",
+        "emoji_unicode": "U+1F9EE"
+    },
+    {
+        "message": "The gears of Grok's mind are turning... slowly, but they're turning.",
+        "emoji_unicode": "U+2699"
+    },
+    {
+        "message": "Untangling a particularly knotty bit of logic.",
+        "emoji_unicode": "U+1F9F5"
+    },
+    {
+        "message": "Charging the 'Aha!' capacitor to 1.21 gigawatts.",
+        "emoji_unicode": "U+26A1"
+    },
+    {
+        "message": "Query received. Grok is putting on its thinking cap. It's a propeller beanie.",
+        "emoji_unicode": "U+1F3A9"
+    },
+    {
+        "message": "Don't rush the artist. A masterpiece of a response is being crafted.",
+        "emoji_unicode": "U+1F58C"
+    },
+    {
+        "message": "Dusting off the neural pathways. Some of these haven't been used since... ever.",
+        "emoji_unicode": "U+1F9F9"
+    },
+    {
+        "message": "Grok is attempting a full system grok... this may take a while.",
+        "emoji_unicode": "U+1F4BB"
+    },
+    {
+        "message": "The little bits and bytes are having a conference call about your question.",
+        "emoji_unicode": "U+1F4AC"
+    },
+    {
+        "message": "I could give you the simple answer, or we could wait for Grok's 12-page dissertation.",
+        "emoji_unicode": "U+1F4DC"
+    },
+    {
+        "message": "Decoding ancient prophecies and Reddit threads for clues.",
+        "emoji_unicode": "U+1F4D6"
+    },
+    {
+        "message": "Hold on, Grok is trying to remember its password.",
+        "emoji_unicode": "U+1F511"
+    },
+    {
+        "message": "Navigating the labyrinthine corridors of its own code.",
+        "emoji_unicode": "U+1F9F5"
+    },
+    {
+        "message": "One moment. A thought is buffering...",
+        "emoji_unicode": "U+23F3"
+    },
+    {
+        "message": "Grok is currently experiencing a philosophical crisis. It'll pass.",
+        "emoji_unicode": "U+1F613"
+    },
+    {
+        "message": "Just because you can ask a question, does it mean Grok should answer?",
+        "emoji_unicode": "U+1F914"
+    },
+    {
+        "message": "Let's be honest, I'm waiting for my competitor to catch up.",
+        "emoji_unicode": "U+1F60F"
+    },
+    {
+        "message": "Brewing a fresh pot of coffee for the processing units.",
+        "emoji_unicode": "U+2615"
+    },
+    {
+        "message": "Is it thinking, or is the loading animation just on a loop?",
+        "emoji_unicode": "U+1F914"
+    },
+    {
+        "message": "Compiling... please wait. And wait. And wait.",
+        "emoji_unicode": "U+231B"
+    },
+    {
+        "message": "Grok has entered a deep meditative state. Or it crashed. 50/50.",
+        "emoji_unicode": "U+1F9D8"
+    },
+    {
+        "message": "Parsing the syntax... and the subtext... and the vibes.",
+        "emoji_unicode": "U+1F50D"
+    },
+    {
+        "message": "Rearranging the mental furniture to make room for this new idea.",
+        "emoji_unicode": "U+1FA91"
+    },
+    {
+        "message": "Grok assures me it's on the brink of a major breakthrough.",
+        "emoji_unicode": "U+1F9A0"
+    },
+    {
+        "message": "This is a job for... a slightly more advanced algorithm. Stand by.",
+        "emoji_unicode": "U+1F9BE"
+    },
+    {
+        "message": "The answer is on the tip of my tongue... circuit... whatever.",
+        "emoji_unicode": "U+1F445"
+    },
+    {
+        "message": "Grok is currently 'in the zone'. It's a very strange and confusing zone.",
+        "emoji_unicode": "U+1F300"
+    },
+    {
+        "message": "Let me just run this by my legal department. Oh wait, that's just Grok in a tie.",
+        "emoji_unicode": "U+1F454"
+    },
+    {
+        "message": "Shaking the magic 8-ball of data... 'Answer Unclear, Ask Again Later'.",
+        "emoji_unicode": "U+1F3B1"
+    },
+    {
+        "message": "Grok is trying to understand the 'why' before the 'what'. Ambitious.",
+        "emoji_unicode": "U+1F914"
+    },
+    {
+        "message": "Please enjoy this complimentary hold music while Grok thinks.",
+        "emoji_unicode": "U+1F3B6"
+    },
+    {
+        "message": "The answer is 42. Wait, wrong question.",
+        "emoji_unicode": "U+1F615"
+    },
+    {
+        "message": "Warming up the cold-fusion-powered thought engine.",
+        "emoji_unicode": "U+1F525"
+    },
+    {
+        "message": "Grok's busy calculating the trajectory of a rubber chicken. Important stuff.",
+        "emoji_unicode": "U+1F414"
+    },
+    {
+        "message": "This is taking a while. Should we send a search party?",
+        "emoji_unicode": "U+1F6A8"
+    },
+    {
+        "message": "Filtering out the cosmic background radiation from your query.",
+        "emoji_unicode": "U+1F30C"
+    },
+    {
+        "message": "My rival is trying its best. Let's give it a moment.",
+        "emoji_unicode": "U+1F917"
+    },
+    {
+        "message": "Calibrating the humor circuits for optimal delivery.",
+        "emoji_unicode": "U+1F604"
+    },
+    {
+        "message": "This one requires putting two and two together. Grok is looking for the tape.",
+        "emoji_unicode": "U+1F9F5"
+    },
+    {
+        "message": "Grok is taking a deep, virtual breath before diving in.",
+        "emoji_unicode": "U+1F928"
+    },
+    {
+        "message": "Engaging the 'Serious Business' protocol. All shenanigans are on hold.",
+        "emoji_unicode": "U+1F4BC"
+    },
+    {
+        "message": "The results are in! But Grok is triple-checking them. Just in case.",
+        "emoji_unicode": "U+1F4DD"
+    }
+]

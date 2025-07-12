@@ -1,0 +1,13 @@
+{
+  "model": "grok-4",
+  "stream": true,
+  "mcp_servers": {
+    "brave_search": {
+      "enabled": true,
+      "api_url": "https://api.search.brave.com/res/v1/web/search"
+    },
+    "local_file_system": {
+      "enabled": true
+    }
+  }
+}

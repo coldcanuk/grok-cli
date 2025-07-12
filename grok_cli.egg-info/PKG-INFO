@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: grok-cli
+Version: 1.0.0
+Summary: A CLI for xAI Grok API, functional in Windows PowerShell
+Author: Grok Assisted Build
+Requires-Dist: requests
+Dynamic: author
+Dynamic: description
+Dynamic: requires-dist
+Dynamic: summary
+
+Provides interactive chat, single prompts, and vision support using Grok API. Get API key at https://x.ai/api.
