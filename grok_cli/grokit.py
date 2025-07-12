@@ -702,8 +702,15 @@ class GroKitGridIntegration:
             "/quit - Exit to main menu"
         )
         
-        self.renderer.add_ai_message("system", help_msg)
-        self.renderer.render_full_screen()
+        # Clear the input area first
+        self.renderer.update_input("", 0)
+        
+        # Add help as system message with proper header
+        self.renderer.add_ai_message("system", f"Here is the output of \"/help\":\n\n{help_msg}")
+        
+        # Only update the AI window and input area, not full screen
+        self.renderer.render_ai_window()
+        self.renderer.render_input_area()
     
     def _get_ai_response(self, user_input: str, reasoning: bool = False) -> str:
         """Get real AI response using GrokEngine with streaming."""
@@ -780,6 +787,8 @@ class GroKitGridIntegration:
     def _on_input_update(self, text: str, cursor_pos: int):
         """Callback for real-time input updates."""
         self.renderer.update_input(text, cursor_pos)
+        # Critical: render the input area to show the updated text
+        self.renderer.render_input_area()
         sys.stdout.flush()
     
     def run(self):
