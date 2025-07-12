@@ -673,20 +673,29 @@ class GroKitGridIntegration:
         self.renderer.render_full_screen()
     
     def _show_cost_summary(self):
-        """Display cost summary."""
+        """Show cost summary."""
         if self.token_counter:
             summary = self.token_counter.get_session_summary()
             cost_msg = (
                 f"Session Cost Summary:\n"
-                f"Total: ${summary.get('total_cost_usd', 0.0):.4f} USD\n"
-                f"Tokens: {summary.get('total_tokens', 0):,}\n"
-                f"Operations: {summary.get('operations_count', 0)}"
+                f"Total Cost: ${summary.get('total_cost_usd', 0.0):.4f}\n"
+                f"Total Tokens: {summary.get('total_tokens', 0):,}\n"
+                f"Input Tokens: {summary.get('input_tokens', 0):,}\n"
+                f"Output Tokens: {summary.get('output_tokens', 0):,}\n"
+                f"Requests: {summary.get('request_count', 0)}"
             )
         else:
             cost_msg = "Cost tracking not available."
         
-        self.renderer.add_ai_message("system", cost_msg)
-        self.renderer.render_full_screen()
+        # Clear the input area first
+        self.renderer.update_input("", 0)
+        
+        # Add cost summary as system message
+        self.renderer.add_ai_message("system", f"Here is the output of \"/costs\":\n\n{cost_msg}")
+        
+        # Only update the AI window and input area, not full screen
+        self.renderer.render_ai_window()
+        self.renderer.render_input_area()
     
     def _show_help(self):
         """Show help information."""
