@@ -211,7 +211,7 @@ class GrokEngine:
             output_cost = GrokPricing.calculate_token_cost(output_tokens, pricing["output"])
             total_cost = input_cost + output_cost
             
-            print(f"Actual cost: ${total_cost:.4f} ({input_tokens} -> {output_tokens} tokens)")
+            # print(f"Actual cost: ${total_cost:.4f} ({input_tokens} -> {output_tokens} tokens)")
     
     def display_session_summary(self):
         """Display session cost summary if cost tracking is enabled."""
@@ -782,7 +782,7 @@ class GrokEngine:
                 estimate["output_cost"]
             )
             
-            print(f"Estimated cost: ${estimate['total_estimated_cost']:.4f} ({input_tokens} input tokens)")
+            # print(f"Estimated cost: ${estimate['total_estimated_cost']:.4f} ({input_tokens} input tokens)")
             self.token_counter.display_cost_warning(estimate["total_estimated_cost"])
         
         # Calculate adaptive delay based on recent activity
@@ -1012,7 +1012,7 @@ class GrokEngine:
                     output_cost = GrokPricing.calculate_token_cost(output_tokens, pricing["output"])
                     total_cost = input_cost + output_cost
                     
-                    print(f"Estimated cost: ${total_cost:.4f} ({input_tokens} -> {output_tokens} tokens)")
+                    # print(f"Estimated cost: ${total_cost:.4f} ({input_tokens} -> {output_tokens} tokens)")
                 
                 if not tool_calls:
                     if iteration == 1 and assistant_content:
