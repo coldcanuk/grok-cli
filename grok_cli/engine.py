@@ -23,8 +23,8 @@ from .request_manager import RequestManager, RequestPriority
 from .utils import get_random_message, load_grok_context, create_grok_directory_template
 from .tokenCount import TokenCounter
 
-# xAI API endpoint - trying without /v1 path
-API_URL = "https://api.x.ai/chat/completions"
+# xAI API endpoint - using v1 path (OpenAI compatible)
+API_URL = "https://api.x.ai/v1/chat/completions"
 DEFAULT_MODEL = "grok-4"
 REASONING_MODELS = {
     "grok-4": "grok-4-reasoning",
@@ -644,7 +644,7 @@ class GrokEngine:
                 
                 if retry_count >= 8:
                     print("\n>> Tip: The optimized CLI is working! Consider spreading requests further apart.")
-                    sys.exit("API Error: Too many requests. The optimization is working - just need to pace things more.")
+                    raise Exception("API Error: Too many requests. The optimization is working - just need to pace things more.")
                 
                 # Enhanced progress bar
                 start_time = time.time()
@@ -661,7 +661,7 @@ class GrokEngine:
             else:
                 raise e
         except requests.exceptions.RequestException as e:
-            sys.exit(f"API Error: {e}")
+            raise Exception(f"API Error: {e}")
     
     def run_chat_loop(self, args, key: str, brave_key: Optional[str], messages: List[Dict[str, Any]]) -> None:
         """Core loop for processing messages and tool calls."""
