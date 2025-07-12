@@ -164,14 +164,13 @@ class GridRenderer:
     def _calculate_message_height(self, msg: Dict, width: int) -> int:
         """Calculate how many lines a message will take."""
         # Role line + markdown-rendered content lines
-        if msg['role'] in ['assistant', 'user'] and msg.get('content'):
-            # Use markdown renderer to get actual line count
+        if msg.get('content'):
+            # Use markdown renderer to get actual line count for all message types
             rendered_lines = self.markdown_renderer.render_markdown(msg['content'])
             return 1 + len(rendered_lines)  # +1 for role header
         else:
-            # Fallback for system messages
-            content_lines = len(self._wrap_text(msg.get('content', ''), width - 4))
-            return 1 + content_lines
+            # Empty content
+            return 1
     
     def _wrap_text(self, text: str, width: int) -> List[str]:
         """Wrap text to fit within specified width."""
@@ -221,8 +220,8 @@ class GridRenderer:
         lines_used = 1
         
         # Message content with markdown rendering
-        if role in ['assistant', 'user'] and msg.get('content'):
-            # Use markdown renderer for rich formatting
+        if msg.get('content'):
+            # Use markdown renderer for all message types including system messages
             rendered_lines = self.markdown_renderer.render_markdown(msg['content'])
             
             for i, line in enumerate(rendered_lines):
@@ -231,13 +230,10 @@ class GridRenderer:
                 print(line, end="")
                 lines_used += 1
         else:
-            # Fallback for system messages (no markdown)
-            content_lines = self._wrap_text(msg.get('content', ''), width - 2)
-            
-            for i, line in enumerate(content_lines):
-                self.move_cursor(y + 1 + i, x + 2)
-                print(f"{self.colors['end']}{line}{self.colors['end']}", end="")
-                lines_used += 1
+            # Empty content
+            self.move_cursor(y + 1, x + 2)
+            print("", end="")
+            lines_used += 1
         
         return lines_used
     

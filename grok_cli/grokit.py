@@ -588,6 +588,11 @@ class GroKitGridIntegration:
         """Process special GroKit commands."""
         command = user_input.strip().lower()
         
+        # Debug: Log the command being processed
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+        logging.debug(f"Processing command: '{command}' from input: '{user_input}'")
+        
         if command == "/quit" or command == "/exit":
             self.running = False
             return None
@@ -734,25 +739,34 @@ class GroKitGridIntegration:
     
     def _show_help(self):
         """Show help information."""
-        help_msg = (
-            "GroKit Grid Commands:\n"
-            "/leader [objective] - Strategic planning\n"
-            "/reasoning [prompt] - Deep reasoning mode\n"
-            "/paste - Paste from clipboard\n"
-            "/multi - Toggle multi-line input\n"
-            "/costs - Show cost summary\n"
-            "/clear - Clear chat history\n"
-            "/help - Show this help\n"
-            "/quit - Exit to main menu"
-        )
+        help_msg = """# GroKit Grid Commands
+
+## Available Commands:
+
+- `/leader [objective]` - Strategic planning mode
+- `/reasoning [prompt]` - Deep reasoning mode  
+- `/paste` - Paste content from clipboard
+- `/multi` - Toggle multi-line input mode
+- `/costs` - Show session cost summary
+- `/clear` - Clear chat history
+- `/help` - Show this help message
+- `/quit` - Exit to main menu
+
+## Tips:
+- Start typing to chat with Grok
+- Use arrow keys to navigate input
+- Ctrl+C to cancel current operation"""
         
-        # Add help as system message with proper timestamp and command indicator
+        # Add help as system message with proper timestamp
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.renderer.add_ai_message("system", help_msg, timestamp=timestamp)
         
-        # Only update the AI window to show the help message
+        # Update the AI window to show the help message
         self.renderer.render_ai_window()
+        # Update status to indicate help was shown
+        self._update_status("Help displayed")
+        self.renderer.render_status_bar()
         sys.stdout.flush()
     
     def _get_ai_response_streaming(self, user_input: str, reasoning: bool = False) -> Tuple[str, Optional[Dict[str, Any]]]:
