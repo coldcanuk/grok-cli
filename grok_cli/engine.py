@@ -12,12 +12,25 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
 import requests
 
+try:
+    from xai_sdk import Client
+    from xai_sdk.chat import user, system
+    XAI_SDK_AVAILABLE = True
+except ImportError:
+    XAI_SDK_AVAILABLE = False
+
 from .request_manager import RequestManager, RequestPriority
 from .utils import get_random_message, load_grok_context, create_grok_directory_template
 from .tokenCount import TokenCounter
 
-API_URL = "https://api.x.ai/v1/chat/completions"
+# xAI API endpoint - trying without /v1 path
+API_URL = "https://api.x.ai/chat/completions"
 DEFAULT_MODEL = "grok-4"
+REASONING_MODELS = {
+    "grok-4": "grok-4-reasoning",
+    "grok-beta": "grok-beta-reasoning", 
+    "grok-3-mini": "grok-3-mini-reasoning"
+}
 SYSTEM_PROMPT = """You are Grok, a helpful and truthful AI built by xAI. When asked to create files or perform file operations, use the available tools to complete the task.
 
 IMPORTANT: I have optimized file operations for you. When you need to read multiple files, I can handle them efficiently in batches. You can make multiple tool calls and I will optimize them automatically.
@@ -40,6 +53,7 @@ class GrokEngine:
         self.project_context = ""
         self.token_counter = None
         self.cost_tracking_enabled = False
+        self.xai_client = None
         
     def load_config(self) -> Dict[str, Any]:
         """Load configuration from settings.json."""
@@ -79,6 +93,11 @@ class GrokEngine:
             return f"{base_prompt}\n\nIMPORTANT: You are working within the source directory: {self.source_directory}\nAll file operations should be relative to this directory boundary."
         
         return base_prompt
+    
+    def init_xai_client(self, api_key: str):
+        """Initialize xAI SDK client."""
+        if XAI_SDK_AVAILABLE:
+            self.xai_client = Client(api_key=api_key)
     
     def enable_cost_tracking(self, session_file: Optional[str] = None):
         """Enable cost tracking with TokenCounter."""
@@ -431,8 +450,12 @@ class GrokEngine:
     
     def api_call(self, key: str, messages: List[Dict[str, Any]], model: str, 
                  stream: bool, tools: Optional[List[Dict[str, Any]]] = None, 
-                 retry_count: int = 0) -> requests.Response:
-        """Make an API call with advanced rate limiting."""
+                 retry_count: int = 0, reasoning: bool = False):
+        """Make an API call using xAI SDK with fallback to requests."""
+        
+        # Initialize client if not already done
+        if self.xai_client is None:
+            self.init_xai_client(key)
         
         # Cost estimation before API call
         if self.cost_tracking_enabled and self.token_counter:
@@ -454,13 +477,6 @@ class GrokEngine:
             print(f"Estimated cost: ${estimate['total_estimated_cost']:.4f} ({input_tokens} input tokens)")
             self.token_counter.display_cost_warning(estimate["total_estimated_cost"])
         
-        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-        data = {"messages": messages, "model": model, "stream": stream}
-        
-        if tools:
-            data["tools"] = tools
-            data["tool_choice"] = "auto"
-        
         # Calculate adaptive delay based on recent activity
         time_since_last = time.time() - self.last_request_time
         if time_since_last < 1.0:  # If less than 1 second, wait a bit
@@ -475,6 +491,132 @@ class GrokEngine:
             ">> Request dispatched with optimal timing...",
             ">> The optimized show begins...",
         ]
+        
+        try:
+            if XAI_SDK_AVAILABLE:
+                return self._api_call_sdk(messages, model, stream, tools, reasoning, retry_count, fun_messages)
+            else:
+                return self._api_call_requests(key, messages, model, stream, tools, reasoning, retry_count, fun_messages)
+        except Exception as e:
+            if retry_count >= 8:
+                print("\n>> Tip: The optimized CLI is working! Consider spreading requests further apart.")
+                raise Exception(f"API Error after 8 attempts: {e}")
+            
+            print(f"\nRetrying API call (attempt {retry_count + 1}/8)...")
+            return self.api_call(key, messages, model, stream, tools, retry_count + 1, reasoning)
+    
+    def _api_call_sdk(self, messages: List[Dict[str, Any]], model: str, stream: bool, 
+                     tools: Optional[List[Dict[str, Any]]], reasoning: bool, 
+                     retry_count: int, fun_messages: List[str]):
+        """Make API call using xAI SDK."""
+        try:
+            # Convert messages to SDK format
+            sdk_messages = []
+            for msg in messages:
+                role = msg["role"]
+                content = msg["content"]
+                
+                if role == "system":
+                    sdk_messages.append(system(content))
+                elif role == "user":
+                    sdk_messages.append(user(content))
+                # For assistant messages, we'll handle them in the chat object
+            
+            # Create chat with model
+            chat = self.xai_client.chat.create(model=model)
+            
+            # Add system and user messages
+            for msg in sdk_messages:
+                chat.append(msg)
+            
+            # Get response
+            if reasoning:
+                # SDK handles reasoning automatically - just sample
+                response = chat.sample()
+                
+                # Create a wrapper object that mimics our expected interface
+                class SDKResponseWrapper:
+                    def __init__(self, sdk_response):
+                        self.sdk_response = sdk_response
+                        self.content = sdk_response.content
+                        self.reasoning_content = getattr(sdk_response, 'reasoning_content', '')
+                        self.usage = sdk_response.usage
+                        self.choices = [self._create_choice()]
+                    
+                    def _create_choice(self):
+                        class Choice:
+                            def __init__(self, content):
+                                self.message = type('Message', (), {'content': content})()
+                        return Choice(self.content)
+                    
+                    def json(self):
+                        return {
+                            "choices": [{"message": {"content": self.content}}],
+                            "usage": {
+                                "prompt_tokens": self.usage.prompt_tokens,
+                                "completion_tokens": self.usage.completion_tokens,
+                                "reasoning_tokens": getattr(self.usage, 'reasoning_tokens', 0),
+                                "total_tokens": self.usage.prompt_tokens + self.usage.completion_tokens
+                            }
+                        }
+                
+                self.last_request_time = time.time()
+                return SDKResponseWrapper(response)
+            else:
+                # Regular response
+                response = chat.sample()
+                
+                class SDKResponseWrapper:
+                    def __init__(self, sdk_response):
+                        self.sdk_response = sdk_response
+                        self.content = sdk_response.content
+                        self.usage = sdk_response.usage
+                        self.choices = [self._create_choice()]
+                    
+                    def _create_choice(self):
+                        class Choice:
+                            def __init__(self, content):
+                                self.message = type('Message', (), {'content': content})()
+                        return Choice(self.content)
+                    
+                    def json(self):
+                        return {
+                            "choices": [{"message": {"content": self.content}}],
+                            "usage": {
+                                "prompt_tokens": self.usage.prompt_tokens,
+                                "completion_tokens": self.usage.completion_tokens,
+                                "total_tokens": self.usage.prompt_tokens + self.usage.completion_tokens
+                            }
+                        }
+                
+                self.last_request_time = time.time()
+                return SDKResponseWrapper(response)
+                
+        except Exception as e:
+            print(f"SDK call failed: {e}")
+            raise e
+    
+    def _api_call_requests(self, key: str, messages: List[Dict[str, Any]], model: str, 
+                          stream: bool, tools: Optional[List[Dict[str, Any]]], 
+                          reasoning: bool, retry_count: int, fun_messages: List[str]):
+        """Fallback API call using requests (original implementation)."""
+        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+        
+        # Handle reasoning mode
+        if reasoning:
+            # Try reasoning model first
+            if model in REASONING_MODELS:
+                reasoning_model = REASONING_MODELS[model]
+                data = {"messages": messages, "model": reasoning_model, "stream": stream}
+            else:
+                # Fall back to parameter-based reasoning
+                data = {"messages": messages, "model": model, "stream": stream, "reasoning": True}
+        else:
+            data = {"messages": messages, "model": model, "stream": stream}
+        
+        if tools:
+            data["tools"] = tools
+            data["tool_choice"] = "auto"
         
         try:
             response = requests.post(API_URL, headers=headers, json=data, stream=stream, timeout=(10, 60))
@@ -515,7 +657,7 @@ class GrokEngine:
                     time.sleep(0.1)
                 print(" " * 50, end="\r")
                 
-                return self.api_call(key, messages, model, stream, tools, retry_count)
+                return self._api_call_requests(key, messages, model, stream, tools, reasoning, retry_count, fun_messages)
             else:
                 raise e
         except requests.exceptions.RequestException as e:
@@ -528,9 +670,13 @@ class GrokEngine:
         
         while iteration < max_iterations:
             iteration += 1
-            response = self.api_call(key, messages, args.model, args.stream, self.tools)
+            reasoning_enabled = getattr(args, 'reasoning', False)
+            response = self.api_call(key, messages, args.model, args.stream, self.tools, reasoning=reasoning_enabled)
             
-            if args.stream:
+            # Check if we're using SDK (response has different interface)
+            is_sdk_response = hasattr(response, 'sdk_response')
+            
+            if args.stream and not is_sdk_response:
                 assistant_content, tool_calls = self.handle_stream_with_tools(response, brave_key, debug_mode=args.debug)
                 
                 # For streaming, estimate token usage since it's not provided in the stream
@@ -614,8 +760,23 @@ class GrokEngine:
                 
                 print("\n[Getting response...]")
                 
+            elif is_sdk_response:
+                # SDK response (non-streaming for now)
+                if hasattr(response, 'reasoning_content') and response.reasoning_content:
+                    print(f"\n[REASONING] {response.reasoning_content}")
+                    print(f"\n[RESPONSE] {response.content}")
+                else:
+                    print(response.content)
+                
+                # Track API response for cost calculation
+                response_json = response.json()
+                self.track_api_response(response_json, args.model, "chat")
+                
+                # No tool calls support in basic SDK implementation yet
+                return
+                
             else:
-                # Non-streaming mode
+                # Non-streaming mode (requests)
                 response_json = response.json()
                 message = response_json["choices"][0]["message"]
                 

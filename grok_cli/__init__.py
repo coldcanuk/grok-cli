@@ -9,10 +9,10 @@ Features:
 - Optimized performance with request batching and caching
 """
 
-__version__ = "2025.1.0"
+__version__ = "2025.1.0.a2"
 __author__ = "Grok CLI Team"
-__email__ = "noreply@example.com"
-__license__ = "MIT"
+__email__ = "oss@scratchpost.ai"
+__license__ = "GPL-3.0"
 
 from .cli import main
 from .engine import GrokEngine

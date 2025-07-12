@@ -77,23 +77,21 @@ class GroKitUI(GroKitInterface):
         """Print the main menu options."""
         self.print_styled("\nSelect an option:", "blue")
         try:
-            self.print_styled("1. 💬 Interactive Chat", "green")
+            self.print_styled("1. 💬 Interactive Chat (Grid UI)", "green")
             self.print_styled("2. 🎯 Leader Mode (Strategic Planning)", "green")
             self.print_styled("3. 📋 Single Prompt", "green")
-            self.print_styled("4. 🖥️  Grid UI (Enhanced Interface)", "green")
-            self.print_styled("5. ⚙️  Settings", "green")
-            self.print_styled("6. 📊 Cost Analysis", "green")
-            self.print_styled("7. ❓ Help", "green")
-            self.print_styled("8. 🚪 Exit", "green")
+            self.print_styled("4. ⚙️  Settings", "green")
+            self.print_styled("5. 📊 Cost Analysis", "green")
+            self.print_styled("6. ❓ Help", "green")
+            self.print_styled("7. 🚪 Exit", "green")
         except UnicodeEncodeError:
-            self.print_styled("1. Interactive Chat", "green")
+            self.print_styled("1. Interactive Chat (Grid UI)", "green")
             self.print_styled("2. Leader Mode (Strategic Planning)", "green")
             self.print_styled("3. Single Prompt", "green")
-            self.print_styled("4. Grid UI (Enhanced Interface)", "green")
-            self.print_styled("5. Settings", "green")
-            self.print_styled("6. Cost Analysis", "green")
-            self.print_styled("7. Help", "green")
-            self.print_styled("8. Exit", "green")
+            self.print_styled("4. Settings", "green")
+            self.print_styled("5. Cost Analysis", "green")
+            self.print_styled("6. Help", "green")
+            self.print_styled("7. Exit", "green")
         
         self.print_cost_summary(compact=True)
         self.print_styled(f"\nWorking Directory: {self.src_path}", "yellow")
@@ -102,13 +100,13 @@ class GroKitUI(GroKitInterface):
         """Get user menu selection."""
         while True:
             try:
-                choice = input(f"\n{self.colors['bold']}Enter choice (1-8): {self.colors['end']}").strip()
-                if choice in ['1', '2', '3', '4', '5', '6', '7', '8']:
+                choice = input(f"\n{self.colors['bold']}Enter choice (1-7): {self.colors['end']}").strip()
+                if choice in ['1', '2', '3', '4', '5', '6', '7']:
                     return choice
                 else:
-                    print(f"{self.colors['red']}Invalid choice. Please enter 1-8.{self.colors['end']}")
+                    print(f"{self.colors['red']}Invalid choice. Please enter 1-7.{self.colors['end']}")
             except KeyboardInterrupt:
-                return '8'  # Exit on Ctrl+C
+                return '7'  # Exit on Ctrl+C
     
     def run_grok_cli_command(self, args: List[str]) -> Tuple[bool, str]:
         """Execute grok-cli command and return success status and output."""
@@ -134,56 +132,7 @@ class GroKitUI(GroKitInterface):
         except Exception as e:
             return False, f"Error executing command: {e}"
     
-    def interactive_chat(self):
-        """Enhanced interactive chat with leader tool integration."""
-        self.clear_screen()
-        self.print_header()
-        self.print_styled("🎯 Interactive Chat Mode", "cyan")
-        self.print_styled("Commands: /leader, /multi, /costs, /help, /quit", "yellow")
-        self.print_styled("Multi-line: Type '###' on new line to submit", "yellow")
-        
-        # Start interactive session
-        while True:
-            try:
-                user_input = self.input_handler.get_input("\nYou: ")
-                
-                if not user_input.strip():
-                    continue
-                
-                # Handle special commands
-                if user_input.strip() == "/quit":
-                    break
-                elif user_input.strip() == "/help":
-                    self.show_chat_help()
-                    continue
-                elif user_input.strip() == "/costs":
-                    self.print_cost_summary(compact=False)
-                    continue
-                elif user_input.strip() == "/multi":
-                    self.input_handler.toggle_multiline()
-                    continue
-                elif user_input.strip().startswith("/leader"):
-                    objective = user_input.strip()[7:].strip()
-                    if not objective:
-                        objective = input("Enter objective for leader mode: ").strip()
-                    
-                    if objective:
-                        self.execute_leader_mode(objective)
-                    continue
-                
-                # Execute regular chat through grok-cli
-                success, output = self.run_grok_cli_command(["--prompt", user_input])
-                
-                if success:
-                    self.print_styled(f"\nGrok: {output}", "green")
-                else:
-                    self.print_styled(f"\nError: {output}", "red")
-                
-            except KeyboardInterrupt:
-                break
-        
-        self.print_styled("\nChat session ended.", "cyan")
-        self.print_cost_summary(compact=False)
+    # Legacy interactive_chat method removed - now using Grid UI for all interactive chat
     
     def execute_leader_mode(self, objective: str):
         """Execute leader mode for strategic planning."""
@@ -264,14 +213,15 @@ class GroKitUI(GroKitInterface):
         print(f"{self.colors['cyan']}❓ GroKit Help{self.colors['end']}")
         
         print(f"\n{self.colors['green']}Main Features:{self.colors['end']}")
-        print("• Interactive Chat - Full conversation with Grok")
+        print("• Interactive Chat - Full conversation with Grok in enhanced Grid UI")
         print("• Leader Mode - Strategic planning with grok-3-mini -> grok-4-0709")
         print("• Single Prompt - Quick questions and responses")
-        print("• Grid UI - Enhanced interface with persistent storage")
-        print("• Cost Tracking - Real-time USD cost monitoring")
+        print("• Cost Tracking - Real-time USD cost monitoring with streaming")
+        print("• Persistent Storage - Chat history and session management")
         
         print(f"\n{self.colors['green']}Chat Commands:{self.colors['end']}")
         print("• /leader [objective] - Activate leader mode in chat")
+        print("• /reasoning [prompt] - Activate reasoning mode for deeper analysis")
         print("• /multiline - Enable multi-line input mode")
         print("• /costs - Show current session costs")
         print("• /help - Show help information")
@@ -324,7 +274,7 @@ class GroKitUI(GroKitInterface):
                 choice = self.get_menu_choice()
                 
                 if choice == '1':
-                    self.interactive_chat()
+                    self.launch_grid_ui()  # Use grid UI for interactive chat
                 elif choice == '2':
                     objective = input("\nEnter objective for leader mode: ").strip()
                     if objective:
@@ -333,14 +283,12 @@ class GroKitUI(GroKitInterface):
                 elif choice == '3':
                     self.single_prompt_mode()
                 elif choice == '4':
-                    self.launch_grid_ui()
-                elif choice == '5':
                     self.show_settings()
-                elif choice == '6':
+                elif choice == '5':
                     self.show_cost_analysis()
-                elif choice == '7':
+                elif choice == '6':
                     self.show_help()
-                elif choice == '8':
+                elif choice == '7':
                     break
         
         except KeyboardInterrupt:
@@ -458,6 +406,18 @@ class GroKitGridIntegration:
                 self._execute_leader_mode(objective)
             return None
         
+        elif command.startswith("/reasoning"):
+            prompt = command[10:].strip()
+            if not prompt:
+                self._update_status("Enter prompt for reasoning mode:")
+                self.renderer.render_full_screen()
+                reasoning_input, _ = self.enhanced_input.get_input("Reasoning prompt: ")
+                prompt = reasoning_input.strip()
+            
+            if prompt and prompt != "/quit":
+                self._execute_reasoning_mode(prompt)
+            return None
+        
         elif command == "/costs":
             self._show_cost_summary()
             return None
@@ -485,6 +445,30 @@ class GroKitGridIntegration:
         
         self.renderer.render_full_screen()
     
+    def _execute_reasoning_mode(self, prompt: str):
+        """Execute reasoning mode with enhanced AI processing."""
+        self._update_status("Activating reasoning mode...")
+        self.renderer.add_ai_message("system", f"Reasoning Mode: {prompt}")
+        self.renderer.render_full_screen()
+        
+        try:
+            # Get AI response with reasoning enabled
+            self._update_status("AI is reasoning deeply...")
+            self.renderer.render_full_screen()
+            
+            ai_response = self._get_ai_response(prompt, reasoning=True)
+            if ai_response:
+                self.renderer.add_ai_message("assistant", f"[REASONING] {ai_response}")
+                self.storage.add_message("assistant", ai_response, {"reasoning": True})
+            
+            self._update_cost_display()
+            self._update_status("Reasoning completed")
+        except Exception as e:
+            self.renderer.add_ai_message("error", f"Reasoning mode error: {e}")
+            self._update_status("Reasoning mode failed")
+        
+        self.renderer.render_full_screen()
+    
     def _show_cost_summary(self):
         """Display cost summary."""
         if self.token_counter:
@@ -506,6 +490,7 @@ class GroKitGridIntegration:
         help_msg = (
             "GroKit Grid Commands:\n"
             "/leader [objective] - Strategic planning\n"
+            "/reasoning [prompt] - Deep reasoning mode\n"
             "/paste - Paste from clipboard\n"
             "/multi - Toggle multi-line input\n"
             "/costs - Show cost summary\n"
@@ -516,6 +501,60 @@ class GroKitGridIntegration:
         
         self.renderer.add_ai_message("system", help_msg)
         self.renderer.render_full_screen()
+    
+    def _get_ai_response(self, user_input: str, reasoning: bool = False) -> str:
+        """Get real AI response using GrokEngine with streaming."""
+        try:
+            import os
+            
+            # Check for API key
+            api_key = os.getenv('XAI_API_KEY')
+            if not api_key:
+                return "Error: No XAI_API_KEY found. Please set your API key in environment variables."
+            
+            # Create messages for the conversation
+            messages = [
+                {"role": "system", "content": "You are Grok, a helpful AI assistant built by xAI. Be concise but thorough in your responses."},
+                {"role": "user", "content": user_input}
+            ]
+            
+            # Use engine to get response with streaming enabled
+            try:
+                # Create a simple namespace object for args
+                class Args:
+                    model = "grok-beta"
+                    stream = True
+                    debug = 0
+                
+                args = Args()
+                brave_key = os.getenv('BRAVE_SEARCH_API_KEY', '')
+                
+                # Get response with reasoning support using SDK
+                response = self.engine.api_call(api_key, messages, args.model, args.stream, self.engine.tools, retry_count=0, reasoning=reasoning)
+                
+                # Check if we're using SDK response
+                if hasattr(response, 'sdk_response'):
+                    # SDK response format
+                    if reasoning and hasattr(response, 'reasoning_content') and response.reasoning_content:
+                        return f"[REASONING]\n{response.reasoning_content}\n\n[RESPONSE]\n{response.content}"
+                    else:
+                        return response.content if response.content else "I apologize, but I couldn't generate a response."
+                elif args.stream:
+                    # Handle streaming response (requests)
+                    assistant_content, tool_calls = self.engine.handle_stream_with_tools(response, brave_key, debug_mode=args.debug)
+                    return assistant_content if assistant_content else "I apologize, but I couldn't generate a response."
+                else:
+                    # Handle non-streaming response (requests)
+                    if hasattr(response, 'choices') and response.choices:
+                        return response.choices[0].message.content
+                    else:
+                        return "I apologize, but I couldn't generate a response."
+                        
+            except Exception as e:
+                return f"Error communicating with AI: {str(e)}"
+                
+        except Exception as e:
+            return f"Error in AI response system: {str(e)}"
     
     def run(self):
         """Main run loop for Grid UI."""
@@ -540,10 +579,14 @@ class GroKitGridIntegration:
                     self.renderer.add_ai_message("user", processed_input)
                     self.storage.add_message("user", processed_input, input_metadata)
                     
-                    # Simple AI response (placeholder)
-                    ai_response = f"[Grid UI Response] Thank you for: {processed_input[:50]}..."
-                    self.renderer.add_ai_message("assistant", ai_response)
-                    self.storage.add_message("assistant", ai_response)
+                    # Get real AI response with streaming
+                    self._update_status("AI is thinking...")
+                    self.renderer.render_full_screen()
+                    
+                    ai_response = self._get_ai_response(processed_input)
+                    if ai_response:
+                        self.renderer.add_ai_message("assistant", ai_response)
+                        self.storage.add_message("assistant", ai_response)
                     
                     self._update_cost_display()
                     self._update_status("Response received")

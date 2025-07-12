@@ -108,7 +108,7 @@ class GridRenderer:
         print(f"{self.colors['bold']}{title_text}{self.colors['end']}", end="")
         
         # Version in top-right
-        if self.header_content['version'] and not self.header_content['version'].startswith('grok_cli'):
+        if self.header_content['version']:
             version_text = f"v{self.header_content['version']}"
             version_x = self.width - len(version_text) - 3
             if version_x > 10:  # Only show if there's enough space

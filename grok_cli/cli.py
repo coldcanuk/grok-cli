@@ -28,6 +28,10 @@ def single_prompt(args, engine: GrokEngine):
         {"role": "user", "content": content}
     ]
     
+    # Use reasoning mode if specified
+    if args.reasoning:
+        print("🧠 Reasoning mode activated - AI will think deeply about your prompt...")
+    
     engine.run_chat_loop(args, key, brave_key, messages)
     
     # Display session summary if cost tracking enabled
@@ -146,6 +150,7 @@ def main():
     parser.add_argument("--src", required=True, help="Source directory to operate from (REQUIRED). Grok CLI will work within this directory boundary and load context from .grok/ subdirectory.")
     parser.add_argument("--test", action="store_true", help="Run self-tests.")
     parser.add_argument("--lead", action="store_true", help="Enable leader mode: grok-3-mini creates strategic plan for grok-4-0709 to execute.")
+    parser.add_argument("--reasoning", action="store_true", help="Enable reasoning mode for deeper AI analysis and problem-solving.")
     parser.add_argument("--cost", action="store_true", help="Enable cost tracking: display token usage and USD costs for API calls.")
     
     args = parser.parse_args()
