@@ -205,8 +205,17 @@ class GridRenderer:
         timestamp = msg.get('timestamp', '')
         color = 'green' if role == 'user' else 'yellow'
         
-        self.move_cursor(y, x)
+        # Build header with optional cost/token info for assistant messages
         header = f"{role.upper()}: {timestamp}"
+        if role == 'assistant' and (msg.get('cost') or msg.get('tokens')):
+            cost_info = []
+            if msg.get('cost'):
+                cost_info.append(msg['cost'])
+            if msg.get('tokens'):
+                cost_info.append(f"{msg['tokens']} tokens")
+            header += f" [{', '.join(cost_info)}]"
+        
+        self.move_cursor(y, x)
         print(f"{self.colors[color]}{header}{self.colors['end']}", end="")
         
         lines_used = 1
@@ -349,16 +358,24 @@ class GridRenderer:
         if version is not None:
             self.header_content['version'] = version
     
-    def add_ai_message(self, role: str, content: str, timestamp: str = None):
+    def add_ai_message(self, role: str, content: str, timestamp: str = None, cost: str = None, tokens: str = None):
         """Add a message to the AI conversation."""
         if timestamp is None:
             timestamp = datetime.now().strftime("%H:%M:%S")
         
-        self.ai_content.append({
+        message = {
             "role": role,
             "content": content,
             "timestamp": timestamp
-        })
+        }
+        
+        # Add cost and token info if provided
+        if cost is not None:
+            message["cost"] = cost
+        if tokens is not None:
+            message["tokens"] = tokens
+            
+        self.ai_content.append(message)
     
     def update_input(self, text: str, cursor_pos: int = None):
         """Update input area content."""

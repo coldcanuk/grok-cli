@@ -14,7 +14,7 @@ class TerminalMarkdownRenderer:
     """Renders markdown content for terminal display with colors and formatting."""
     
     def __init__(self, width: int = 70):
-        self.width = width
+        self.width = max(20, width)  # Ensure minimum width
         self.colors = self._init_colors()
         
     def _init_colors(self) -> Dict[str, str]:
@@ -229,13 +229,47 @@ class TerminalMarkdownRenderer:
         """Render regular text with inline formatting."""
         if not line.strip():
             return [""]
-        
+
         formatted_line = self._apply_inline_formatting(line)
         
-        # Wrap long lines
-        wrapped_lines = textwrap.wrap(formatted_line, width=self.width)
+        # Wrap long lines with proper width handling
+        # Account for ANSI escape sequences when wrapping
+        import re
+        # Remove ANSI codes for length calculation
+        clean_line = re.sub(r'\033\[[0-9;]*m', '', formatted_line)
+        
+        if len(clean_line) <= self.width:
+            return [formatted_line]
+        
+        # Manual wrapping to preserve ANSI codes
+        wrapped_lines = []
+        current_line = ""
+        current_length = 0
+        words = formatted_line.split(' ')
+        
+        for word in words:
+            # Calculate word length without ANSI codes
+            clean_word = re.sub(r'\033\[[0-9;]*m', '', word)
+            word_length = len(clean_word)
+            
+            if current_length + word_length + (1 if current_line else 0) <= self.width:
+                if current_line:
+                    current_line += " " + word
+                    current_length += 1 + word_length
+                else:
+                    current_line = word
+                    current_length = word_length
+            else:
+                if current_line:
+                    wrapped_lines.append(current_line)
+                current_line = word
+                current_length = word_length
+        
+        if current_line:
+            wrapped_lines.append(current_line)
+        
         return wrapped_lines if wrapped_lines else [""]
-    
+
     def _apply_inline_formatting(self, text: str) -> str:
         """Apply inline markdown formatting like bold, italic, code."""
         if not text:

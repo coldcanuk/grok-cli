@@ -548,7 +548,6 @@ class GroKitGridIntegration:
         """Update status message."""
         self.status_message = message
         self.renderer.update_status(message=message)
-        self.renderer.render_full_screen()
     
     def _update_cost_display(self):
         """Update cost and token display with real-time data."""
@@ -557,11 +556,7 @@ class GroKitGridIntegration:
                 summary = self.token_counter.get_session_summary()
                 self.cost_display = f"${summary.get('total_cost_usd', 0.0):.4f}"
                 self.tokens_display = f"{summary.get('total_tokens', 0):,}"
-                
-                self.renderer.update_status(
-                    cost=self.cost_display,
-                    tokens=self.tokens_display
-                )
+                self.renderer.update_status(cost=self.cost_display, tokens=self.tokens_display)
                 
                 # Also update the engine's token counter if they're different
                 if self.engine.token_counter and self.engine.token_counter != self.token_counter:
@@ -573,12 +568,21 @@ class GroKitGridIntegration:
                             cost=self.cost_display,
                             tokens=self.tokens_display
                         )
-                
-                # CRITICAL FIX: Re-render the screen to show the updated costs
-                self.renderer.render_full_screen()
-                        
             except Exception as e:
                 print(f"Warning: Could not update cost display: {e}")
+    
+    def _extract_cost_info(self, response: str) -> Optional[Dict[str, str]]:
+        """Extract cost information from response if present."""
+        # Look for cost patterns in the response
+        import re
+        cost_pattern = r'Estimated cost: \$([0-9.]+) \(([0-9,]+) input tokens\)'
+        match = re.search(cost_pattern, response)
+        if match:
+            return {
+                'cost': f"${match.group(1)}",
+                'tokens': match.group(2).replace(',', '')
+            }
+        return None
     
     def _process_special_commands(self, user_input: str) -> Optional[str]:
         """Process special GroKit commands."""
@@ -801,19 +805,34 @@ class GroKitGridIntegration:
                     self.renderer.add_ai_message("user", processed_input)
                     self.storage.add_message("user", processed_input, input_metadata)
                     
-                    # Get real AI response with streaming
+                    # Update only the AI window and status, not full screen
                     self._update_status("AI is thinking...")
-                    self.renderer.render_full_screen()
+                    self.renderer.render_ai_window()
+                    self.renderer.render_status_bar()
                     
                     ai_response = self._get_ai_response(processed_input)
                     if ai_response:
-                        self.renderer.add_ai_message("assistant", ai_response)
+                        # Extract cost info if present in response
+                        cost_info = self._extract_cost_info(ai_response)
+                        if cost_info:
+                            self.renderer.add_ai_message("assistant", ai_response, 
+                                                        timestamp=datetime.now().strftime("%H:%M:%S"),
+                                                        cost=cost_info['cost'],
+                                                        tokens=cost_info['tokens'])
+                        else:
+                            self.renderer.add_ai_message("assistant", ai_response)
                         self.storage.add_message("assistant", ai_response)
                     
-                    # Force cost display update after response
+                    # Update cost display in status bar
                     self._update_cost_display()
                     self._update_status("Response received")
-                    self.renderer.render_full_screen()
+                    
+                    # Only update AI window and status bar, not full screen
+                    self.renderer.render_ai_window()
+                    self.renderer.render_status_bar()
+                    
+                    # Clear input area for next input
+                    self.renderer.update_input("", 0)
                     
                 except KeyboardInterrupt:
                     self.running = False
