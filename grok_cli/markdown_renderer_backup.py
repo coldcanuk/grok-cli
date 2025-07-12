@@ -1,20 +1,14 @@
 """
-Terminal-friendly Markdown renderer using the rich library.
-Provides enhanced markdown rendering with syntax highlighting for multiple languages.
+Terminal-friendly Markdown renderer for chat messages.
+Converts markdown to formatted terminal text with colors and structure.
 """
-
-try:
-    from rich.console import Console
-    from rich.markdown import Markdown
-    from rich.syntax import Syntax
-    from io import StringIO
-    RICH_AVAILABLE = True
-except ImportError:
-    RICH_AVAILABLE = False
 
 import re
 import textwrap
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple
+from markdown import markdown
+from markdown.extensions import codehilite, fenced_code
+import html
 
 class TerminalMarkdownRenderer:
     """Renders markdown content for terminal display with colors and formatting."""
@@ -22,16 +16,6 @@ class TerminalMarkdownRenderer:
     def __init__(self, width: int = 70):
         self.width = max(20, width)  # Ensure minimum width
         self.colors = self._init_colors()
-        
-        # Initialize rich console if available
-        if RICH_AVAILABLE:
-            self.console = Console(
-                width=self.width,
-                force_terminal=True,
-                highlight=True,
-                legacy_windows=False,
-                color_system="truecolor"
-            )
         
     def _init_colors(self) -> Dict[str, str]:
         """Initialize ANSI color codes for terminal formatting."""
@@ -71,34 +55,7 @@ class TerminalMarkdownRenderer:
         if not text or not text.strip():
             return [""]
         
-        # Use rich if available
-        if RICH_AVAILABLE:
-            try:
-                # Use rich to render the markdown
-                md = Markdown(text, code_theme="monokai", hyperlinks=False)
-                
-                # Capture the output to a string buffer
-                buffer = StringIO()
-                capture_console = Console(
-                    file=buffer,
-                    width=self.width,
-                    force_terminal=True,
-                    color_system="truecolor",
-                    legacy_windows=False
-                )
-                capture_console.print(md)
-                rendered = buffer.getvalue()
-                
-                # Split into lines and remove trailing newline if present
-                lines = rendered.strip().split('\n')
-                
-                return lines if lines else [""]
-                
-            except Exception:
-                # Fall through to original implementation
-                pass
-        
-        # Original implementation (fallback)
+        # Handle different markdown elements
         lines = []
         current_lines = text.split('\n')
         i = 0
@@ -175,79 +132,32 @@ class TerminalMarkdownRenderer:
         # Python highlighting
         if language.lower() in ['python', 'py']:
             # Keywords
-            line = re.sub(r'\b(def|class|if|else|elif|for|while|try|except|import|from|return|yield|with|as|lambda|pass|break|continue|global|nonlocal|assert|del|raise|finally|is|and|or|not|in)\b', 
+            line = re.sub(r'\b(def|class|if|else|elif|for|while|try|except|import|from|return|yield|with|as)\b', 
                          f'{self.colors["magenta"]}\\1{self.colors["reset"]}', line)
-            # Built-in functions
-            line = re.sub(r'\b(print|len|range|int|str|float|list|dict|set|tuple|type|isinstance|hasattr|getattr|setattr|delattr|open|input|help|dir|zip|map|filter|sorted|reversed|enumerate|all|any|sum|min|max|abs|round|pow|divmod|complex|bool|bytes|bytearray|memoryview|hex|oct|bin|format|ord|chr|ascii|repr|eval|exec|compile|globals|locals|vars)\b(?=\()', 
-                         f'{self.colors["yellow"]}\\1{self.colors["reset"]}', line)
             # Strings
-            line = re.sub(r'(["\'])([^"\']*)\\1', 
+            line = re.sub(r'(["\'])([^"\']*?)\\1', 
                          f'{self.colors["green"]}\\1\\2\\1{self.colors["reset"]}', line)
             # Comments
             line = re.sub(r'(#.*)', 
                          f'{self.colors["dim"]}\\1{self.colors["reset"]}', line)
         
-        # JavaScript/JSX highlighting
-        elif language.lower() in ['javascript', 'js', 'jsx', 'typescript', 'ts', 'tsx']:
+        # JavaScript highlighting
+        elif language.lower() in ['javascript', 'js', 'jsx']:
             # Keywords
-            line = re.sub(r'\b(function|const|let|var|if|else|for|while|return|class|async|await|new|this|super|extends|static|get|set|try|catch|finally|throw|switch|case|default|break|continue|do|instanceof|typeof|void|delete|in|of|yield|import|export|from|as|require)\b', 
+            line = re.sub(r'\b(function|const|let|var|if|else|for|while|return|class|async|await)\b', 
                          f'{self.colors["magenta"]}\\1{self.colors["reset"]}', line)
-            # JSX/React elements (basic support)
-            line = re.sub(r'<(/?)([A-Z][a-zA-Z0-9]*)', 
-                         f'{self.colors["cyan"]}<\\1\\2{self.colors["reset"]}', line)
-            line = re.sub(r'(/>|>)', 
-                         f'{self.colors["cyan"]}\\1{self.colors["reset"]}', line)
             # Strings
-            line = re.sub(r'(["\'])([^"\']*)\\1', 
+            line = re.sub(r'(["\'])([^"\']*?)\\1', 
                          f'{self.colors["green"]}\\1\\2\\1{self.colors["reset"]}', line)
-            # Template literals
-            line = re.sub(r'`([^`]*)`', 
-                         f'{self.colors["green"]}`\\1`{self.colors["reset"]}', line)
             # Comments
             line = re.sub(r'(//.*)', 
                          f'{self.colors["dim"]}\\1{self.colors["reset"]}', line)
-        
-        # PowerShell highlighting
-        elif language.lower() in ['powershell', 'ps1', 'ps']:
-            # Keywords
-            line = re.sub(r'\b(function|if|else|elseif|switch|foreach|for|while|do|break|continue|return|filter|in|trap|throw|param|begin|process|end|try|catch|finally|class|enum|using|namespace|module|New|Get|Set|Add|Remove|Clear|Invoke|Out|Write|Read|ConvertTo|ConvertFrom|Select|Where|ForEach|Sort|Group|Measure|Compare|Test|Start|Stop|Restart|Suspend|Resume|Wait|Enter|Exit|Push|Pop|Import|Export)\b', 
-                         f'{self.colors["blue"]}\\1{self.colors["reset"]}', line)
-            # Variables
-            line = re.sub(r'(\$[a-zA-Z_][a-zA-Z0-9_]*)', 
-                         f'{self.colors["yellow"]}\\1{self.colors["reset"]}', line)
-            # Strings
-            line = re.sub(r'(["\'])([^"\']*)\\1', 
-                         f'{self.colors["green"]}\\1\\2\\1{self.colors["reset"]}', line)
-            # Comments
-            line = re.sub(r'(#.*)', 
-                         f'{self.colors["dim"]}\\1{self.colors["reset"]}', line)
-        
-        # C# highlighting
-        elif language.lower() in ['csharp', 'cs', 'c#']:
-            # Keywords
-            line = re.sub(r'\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|while|async|await|dynamic|partial|yield|value|get|set)\b', 
-                         f'{self.colors["blue"]}\\1{self.colors["reset"]}', line)
-            # Types
-            line = re.sub(r'\b(Console|String|DateTime|List|Dictionary|Array|Exception|Task|IEnumerable|IList|IDictionary|StringBuilder|Stream|File|Directory)\b', 
-                         f'{self.colors["cyan"]}\\1{self.colors["reset"]}', line)
-            # Strings
-            line = re.sub(r'(["\'])([^"\']*)\\1', 
-                         f'{self.colors["red"]}\\1\\2\\1{self.colors["reset"]}', line)
-            # Comments
-            line = re.sub(r'(//.*)', 
-                         f'{self.colors["green"]}\\1{self.colors["reset"]}', line)
         
         # Bash highlighting
         elif language.lower() in ['bash', 'sh', 'shell']:
             # Commands
             line = re.sub(r'^(\s*)([\w-]+)', 
                          f'\\1{self.colors["yellow"]}\\2{self.colors["reset"]}', line)
-            # Variables
-            line = re.sub(r'(\$[a-zA-Z_][a-zA-Z0-9_]*|\${[^}]+})', 
-                         f'{self.colors["cyan"]}\\1{self.colors["reset"]}', line)
-            # Strings
-            line = re.sub(r'(["\'])([^"\']*)\\1', 
-                         f'{self.colors["green"]}\\1\\2\\1{self.colors["reset"]}', line)
             # Comments
             line = re.sub(r'(#.*)', 
                          f'{self.colors["dim"]}\\1{self.colors["reset"]}', line)
@@ -388,118 +298,32 @@ def test_markdown_renderer():
     """Test the markdown renderer with sample content."""
     renderer = TerminalMarkdownRenderer(width=70)
     
-    sample_text = """# Enhanced Markdown Renderer Test
+    sample_text = """# Main Header
 
 This is a paragraph with **bold text** and *italic text* and `inline code`.
 
-## Code Examples
+## Code Example
 
-### Python Example
+Here's a Python example:
 
 ```python
-def factorial(n: int) -> int:
-    \"\"\"Calculate factorial recursively.\"\"\"
-    if n <= 1:
-        return 1
-    return n * factorial(n - 1)
-
-class Example:
-    def __init__(self):
-        self.value = "test string"  # This is a comment
-        print(f"Initialized with {self.value}")
+def hello_world():
+    print("Hello, World!")
+    return True
 ```
 
-### JavaScript/React Example
+### List Example
 
-```jsx
-const Component = ({ name }) => {
-    const [count, setCount] = useState(0);
-    
-    return (
-        <div className="greeting">
-            <h1>Hello, {name}!</h1>
-            <button onClick={() => setCount(count + 1)}>
-                Clicked {count} times
-            </button>
-        </div>
-    );
-};
-
-export default Component;
-```
-
-### PowerShell Example
-
-```powershell
-function Get-SystemInfo {
-    param(
-        [string]$ComputerName = $env:COMPUTERNAME
-    )
-    
-    $info = Get-WmiObject -Class Win32_ComputerSystem -ComputerName $ComputerName
-    Write-Output "Computer: $($info.Name)"
-    Write-Output "RAM: $([math]::Round($info.TotalPhysicalMemory / 1GB, 2)) GB"
-}
-
-Get-SystemInfo -ComputerName "Server01"
-```
-
-### C# Example
-
-```csharp
-public class HelloWorld {
-    private string message;
-    
-    public HelloWorld(string msg) {
-        this.message = msg ?? "Default message";
-    }
-    
-    public async Task<string> GetGreetingAsync() {
-        await Task.Delay(100);  // Simulate async work
-        return $"Hello, {message}!";
-    }
-    
-    public static void Main(string[] args) {
-        var hw = new HelloWorld("World");
-        Console.WriteLine(hw.GetGreetingAsync().Result);
-    }
-}
-```
-
-### Bash Example
-
-```bash
-#!/bin/bash
-# System backup script
-
-BACKUP_DIR="/backup"
-SOURCE_DIR="/home"
-DATE=$(date +%Y%m%d)
-
-if [ ! -d "$BACKUP_DIR" ]; then
-    mkdir -p "$BACKUP_DIR"
-fi
-
-echo "Starting backup of $SOURCE_DIR..."
-tar -czf "$BACKUP_DIR/backup-$DATE.tar.gz" "$SOURCE_DIR"
-echo "Backup completed!"
-```
-
-## List Examples
-
-- First item with `inline code`
-- Second item with **bold text**
-- Third item with *italic text*
-  - Nested item 1
-  - Nested item 2
+- First item with `code`
+- Second item
+- Third item
 
 1. Numbered item
-2. Another numbered item with `code`
-3. Final item with **bold** and *italic*
+2. Another numbered item
 
-Regular text continues here with a very long line that should wrap properly when rendered in the terminal without breaking the formatting or causing any display issues in the Grid UI."""
+Regular text continues here."""
     
-    print("Testing Enhanced Markdown Renderer:")
+    print("Testing Markdown Renderer:")
     print("=" * 70)
     
     lines = renderer.render_markdown(sample_text)
@@ -507,7 +331,6 @@ Regular text continues here with a very long line that should wrap properly when
         print(line)
     
     print("=" * 70)
-    print("\nRich library available:", RICH_AVAILABLE)
 
 
 if __name__ == "__main__":

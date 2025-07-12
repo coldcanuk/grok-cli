@@ -595,6 +595,9 @@ class GroKitGridIntegration:
         elif command == "/clear":
             self.renderer.clear_ai_history()
             self._update_status("Chat history cleared")
+            # Only update AI window, not full screen
+            self.renderer.render_ai_window()
+            self.renderer.render_status_bar()
             return None
         
         elif command.startswith("/leader"):
@@ -635,7 +638,8 @@ class GroKitGridIntegration:
         """Execute leader-follower mode."""
         self._update_status("Initializing leader mode...")
         self.renderer.add_ai_message("system", f"Leader Mode: {objective}")
-        self.renderer.render_full_screen()
+        self.renderer.render_ai_window()
+        self.renderer.render_status_bar()
         
         try:
             # Simple placeholder - would integrate with actual leader orchestrator
@@ -646,20 +650,22 @@ class GroKitGridIntegration:
             self.renderer.add_ai_message("error", f"Leader mode error: {e}")
             self._update_status("Leader mode failed")
         
-        self.renderer.render_full_screen()
+        self.renderer.render_ai_window()
+        self.renderer.render_status_bar()
     
     def _execute_reasoning_mode(self, prompt: str):
         """Execute reasoning mode with enhanced AI processing."""
         self._update_status("Activating reasoning mode...")
         self.renderer.add_ai_message("system", f"Reasoning Mode: {prompt}")
-        self.renderer.render_full_screen()
+        self.renderer.render_ai_window()
+        self.renderer.render_status_bar()
         
         try:
             # Get AI response with reasoning enabled
             self._update_status("AI is reasoning deeply...")
-            self.renderer.render_full_screen()
+            self.renderer.render_status_bar()
             
-            ai_response, token_info = self._get_ai_response(prompt, reasoning=True)
+            ai_response, token_info = self._get_ai_response_streaming(prompt, reasoning=True)
             if ai_response:
                 # Use token info from API response if available
                 if token_info:
@@ -677,7 +683,8 @@ class GroKitGridIntegration:
             self.renderer.add_ai_message("error", f"Reasoning mode error: {e}")
             self._update_status("Reasoning mode failed")
         
-        self.renderer.render_full_screen()
+        self.renderer.render_ai_window()
+        self.renderer.render_status_bar()
     
     def _show_cost_summary(self):
         """Show cost summary."""
@@ -716,15 +723,14 @@ class GroKitGridIntegration:
         else:
             cost_msg = "Cost tracking not available."
         
-        # Clear the input area first
-        self.renderer.update_input("", 0)
+        # Add cost summary as system message with proper timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.renderer.add_ai_message("system", cost_msg, timestamp=timestamp)
         
-        # Add cost summary as system message
-        self.renderer.add_ai_message("system", f"Here is the output of \"/costs\":\n\n{cost_msg}")
-        
-        # Only update the AI window and input area, not full screen
+        # Only update the AI window to show the cost summary
         self.renderer.render_ai_window()
-        self.renderer.render_input_area()
+        sys.stdout.flush()
     
     def _show_help(self):
         """Show help information."""
@@ -740,15 +746,179 @@ class GroKitGridIntegration:
             "/quit - Exit to main menu"
         )
         
-        # Clear the input area first
-        self.renderer.update_input("", 0)
+        # Add help as system message with proper timestamp and command indicator
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.renderer.add_ai_message("system", help_msg, timestamp=timestamp)
         
-        # Add help as system message with proper header
-        self.renderer.add_ai_message("system", f"Here is the output of \"/help\":\n\n{help_msg}")
-        
-        # Only update the AI window and input area, not full screen
+        # Only update the AI window to show the help message
         self.renderer.render_ai_window()
-        self.renderer.render_input_area()
+        sys.stdout.flush()
+    
+    def _get_ai_response_streaming(self, user_input: str, reasoning: bool = False) -> Tuple[str, Optional[Dict[str, Any]]]:
+        """Get real AI response with live streaming into the chat window. Returns (response_text, token_info)."""
+        try:
+            import os
+            
+            # Check for API key
+            api_key = os.getenv('XAI_API_KEY')
+            if not api_key:
+                return "Error: No XAI_API_KEY found. Please set your API key in environment variables.", None
+            
+            # Create messages for the conversation with enhanced system prompt
+            system_prompt = self.engine.get_enhanced_system_prompt()
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input}
+            ]
+            
+            # Use engine to get response with streaming enabled
+            try:
+                # Create a simple namespace object for args
+                class Args:
+                    model = "grok-4-0709"
+                    stream = True
+                    debug = 0
+                
+                args = Args()
+                brave_key = os.getenv('BRAVE_SEARCH_API_KEY', '')
+                
+                # Get response with reasoning support using SDK
+                response = self.engine.api_call(api_key, messages, args.model, args.stream, self.engine.tools, retry_count=0, reasoning=reasoning)
+                
+                # Initialize token info
+                token_info = None
+                
+                # Check if we're using SDK response
+                if hasattr(response, 'sdk_response'):
+                    # SDK response format - extract usage info and show immediately
+                    if hasattr(response, 'usage'):
+                        usage = response.usage
+                        total_tokens = getattr(usage, 'prompt_tokens', 0) + getattr(usage, 'completion_tokens', 0)
+                        
+                        # Calculate cost
+                        from .tokenCount import GrokPricing
+                        pricing = GrokPricing.get_model_pricing(args.model)
+                        input_cost = GrokPricing.calculate_token_cost(getattr(usage, 'prompt_tokens', 0), pricing["input"])
+                        output_cost = GrokPricing.calculate_token_cost(getattr(usage, 'completion_tokens', 0), pricing["output"])
+                        total_cost = input_cost + output_cost
+                        
+                        token_info = {
+                            'cost': f"${total_cost:.4f}",
+                            'tokens': total_tokens
+                        }
+                    
+                    # Update cost display immediately
+                    self._update_cost_display()
+                    
+                    # Return complete response
+                    if reasoning and hasattr(response, 'reasoning_content') and response.reasoning_content:
+                        return f"[REASONING]\n{response.reasoning_content}\n\n[RESPONSE]\n{response.content}", token_info
+                    else:
+                        return response.content if response.content else "I apologize, but I couldn't generate a response.", token_info
+                        
+                elif args.stream:
+                    # Handle streaming response with live updates
+                    return self._handle_streaming_response(response, brave_key, args.debug)
+                else:
+                    # Handle non-streaming response
+                    self._update_cost_display()
+                    
+                    if hasattr(response, 'choices') and response.choices:
+                        return response.choices[0].message.content, token_info
+                    else:
+                        return "I apologize, but I couldn't generate a response.", token_info
+                        
+            except Exception as e:
+                return f"Error communicating with AI: {str(e)}", None
+                
+        except Exception as e:
+            return f"Error in AI response system: {str(e)}", None
+    
+    def _handle_streaming_response(self, response, brave_key: str, debug_mode: int) -> Tuple[str, Optional[Dict[str, Any]]]:
+        """Handle streaming response with live updates to the chat window."""
+        # Add initial assistant message placeholder
+        assistant_msg_index = len(self.renderer.ai_content)
+        self.renderer.add_ai_message("assistant", "")
+        
+        # Track streaming content
+        streaming_content = ""
+        
+        try:
+            # Process the streaming response
+            for chunk in response.iter_lines():
+                if chunk:
+                    chunk_str = chunk.decode('utf-8')
+                    if chunk_str.startswith('data: '):
+                        data_str = chunk_str[6:]
+                        if data_str.strip() == '[DONE]':
+                            break
+                        
+                        try:
+                            import json
+                            chunk_data = json.loads(data_str)
+                            
+                            # Extract content from chunk
+                            if 'choices' in chunk_data and chunk_data['choices']:
+                                choice = chunk_data['choices'][0]
+                                if 'delta' in choice and 'content' in choice['delta']:
+                                    new_content = choice['delta']['content']
+                                    if new_content:
+                                        streaming_content += new_content
+                                        
+                                        # Update the assistant message in place
+                                        if assistant_msg_index < len(self.renderer.ai_content):
+                                            self.renderer.ai_content[assistant_msg_index]['content'] = streaming_content
+                                            
+                                            # Re-render only the AI window
+                                            self.renderer.render_ai_window()
+                                            sys.stdout.flush()
+                        except json.JSONDecodeError:
+                            continue
+            
+            # Handle any tool calls and outputs
+            assistant_content, tool_calls, tool_outputs = self.engine.handle_stream_with_tools(
+                response, brave_key, debug_mode=debug_mode, capture_tools=True
+            )
+            
+            # Combine streaming content with any tool outputs
+            final_content = streaming_content
+            if tool_outputs:
+                final_content = f"{streaming_content}\n\n{tool_outputs}" if streaming_content else tool_outputs
+            
+            # Update the message with final content
+            if assistant_msg_index < len(self.renderer.ai_content):
+                self.renderer.ai_content[assistant_msg_index]['content'] = final_content
+            
+            # Get token info from the token counter
+            token_info = None
+            if self.token_counter:
+                summary = self.token_counter.get_session_summary()
+                if summary and summary.get('operations_count', 0) > 0:
+                    operations = self.token_counter.session_costs.operations
+                    if operations:
+                        last_op = operations[-1]
+                        total_tokens = last_op.input_tokens + last_op.output_tokens
+                        
+                        from .tokenCount import GrokPricing
+                        pricing = GrokPricing.get_model_pricing("grok-4-0709")
+                        input_cost = GrokPricing.calculate_token_cost(last_op.input_tokens, pricing["input"])
+                        output_cost = GrokPricing.calculate_token_cost(last_op.output_tokens, pricing["output"])
+                        total_cost = input_cost + output_cost
+                        
+                        token_info = {
+                            'cost': f"${total_cost:.4f}",
+                            'tokens': total_tokens
+                        }
+            
+            # Update cost display
+            self._update_cost_display()
+            
+            return final_content, token_info
+            
+        except Exception as e:
+            # If streaming fails, fall back to the original method
+            return self._get_ai_response(user_input, reasoning), None
     
     def _get_ai_response(self, user_input: str, reasoning: bool = False) -> Tuple[str, Optional[Dict[str, Any]]]:
         """Get real AI response using GrokEngine with streaming. Returns (response_text, token_info)."""
@@ -891,18 +1061,24 @@ class GroKitGridIntegration:
                     if processed_input is None:
                         continue
                     
-                    # Add user message and process
+                    # Step 1: Clear input area immediately and add user message to chat
+                    self.renderer.update_input("", 0)
+                    self.renderer.render_input_area()
+                    
+                    # Step 2: Add user message and render chat window
                     self.renderer.add_ai_message("user", processed_input)
                     self.storage.add_message("user", processed_input, input_metadata)
-                    
-                    # Update only the AI window and status, not full screen
-                    self._update_status("AI is thinking...")
                     self.renderer.render_ai_window()
-                    self.renderer.render_status_bar()
                     
-                    ai_response, token_info = self._get_ai_response(processed_input)
+                    # Step 3: Update status and start AI processing
+                    self._update_status("AI is thinking...")
+                    self.renderer.render_status_bar()
+                    sys.stdout.flush()
+                    
+                    # Step 4: Get AI response and stream it into chat
+                    ai_response, token_info = self._get_ai_response_streaming(processed_input)
                     if ai_response:
-                        # Use token info from API response if available
+                        # Add final AI message with complete response
                         if token_info:
                             self.renderer.add_ai_message("assistant", ai_response, 
                                                         timestamp=datetime.now().strftime("%H:%M:%S"),
@@ -912,16 +1088,12 @@ class GroKitGridIntegration:
                             self.renderer.add_ai_message("assistant", ai_response)
                         self.storage.add_message("assistant", ai_response)
                     
-                    # Update cost display in status bar
+                    # Step 5: Update final status and cost display
                     self._update_cost_display()
-                    self._update_status("Response received")
-                    
-                    # Only update AI window and status bar, not full screen
+                    self._update_status("Ready")
                     self.renderer.render_ai_window()
                     self.renderer.render_status_bar()
-                    
-                    # Clear input area for next input
-                    self.renderer.update_input("", 0)
+                    sys.stdout.flush()
                     
                 except KeyboardInterrupt:
                     self.running = False
@@ -929,7 +1101,8 @@ class GroKitGridIntegration:
                     error_msg = f"Error: {e}"
                     self.renderer.add_ai_message("error", error_msg)
                     self._update_status("Error occurred")
-                    self.renderer.render_full_screen()
+                    self.renderer.render_ai_window()
+                    self.renderer.render_status_bar()
         
         finally:
             # Return to menu

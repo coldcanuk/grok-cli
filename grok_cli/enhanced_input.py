@@ -448,23 +448,15 @@ class EnhancedInputHandler:
     
     def _show_single_line_help(self):
         """Show single-line mode help."""
-        print("\nSingle-line Input Help:")
-        print("  /paste     - Paste from clipboard")
-        print("  /multi     - Switch to multi-line mode")
-        print("  /history   - Show recent input history")
-        print("  /optimize  - Toggle text optimization")
-        print("  /clear     - Clear current input")
-        print("  /help      - Show this help")
+        # Don't print directly - this will be handled by the grid UI system
+        # This method exists for compatibility but shouldn't print to stdout
+        pass
     
     def _show_multiline_help(self):
         """Show multi-line mode help."""
-        print("\nMulti-line Input Help:")
-        print("  ###        - Submit multi-line input")
-        print("  /single    - Switch to single-line mode")
-        print("  /paste     - Paste from clipboard")
-        print("  /clear     - Clear current buffer")
-        print("  /undo      - Remove last line")
-        print("  /help      - Show this help")
+        # Don't print directly - this will be handled by the grid UI system
+        # This method exists for compatibility but shouldn't print to stdout
+        pass
     
     def _handle_char_update(self, text: str, cursor_pos: int):
         """Handle character updates from terminal input."""
