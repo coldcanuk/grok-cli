@@ -350,12 +350,19 @@ class GroKitGridIntegration:
         self._update_status("GroKit Grid initialized")
     
     def _enable_cost_tracking(self):
-        """Enable cost tracking for the session."""
+        """Enable cost tracking for the session with unified tracking."""
         try:
             from .tokenCount import create_token_counter
             cost_file = os.path.join(self.src_path, "grokit_grid_costs.json")
+            
+            # Create a shared token counter instance
             self.token_counter = create_token_counter(cost_file)
-            self.engine.enable_cost_tracking(cost_file)
+            
+            # Use the same token counter for the engine
+            self.engine.token_counter = self.token_counter
+            self.engine.cost_tracking_enabled = True
+            
+            # Initialize display
             self._update_cost_display()
         except Exception as e:
             print(f"Warning: Could not enable cost tracking: {e}")
@@ -367,7 +374,7 @@ class GroKitGridIntegration:
         self.renderer.render_full_screen()
     
     def _update_cost_display(self):
-        """Update cost and token display."""
+        """Update cost and token display with real-time data."""
         if self.token_counter:
             try:
                 summary = self.token_counter.get_session_summary()
@@ -378,6 +385,18 @@ class GroKitGridIntegration:
                     cost=self.cost_display,
                     tokens=self.tokens_display
                 )
+                
+                # Also update the engine's token counter if they're different
+                if self.engine.token_counter and self.engine.token_counter != self.token_counter:
+                    engine_summary = self.engine.token_counter.get_session_summary()
+                    if engine_summary.get('total_cost_usd', 0) > summary.get('total_cost_usd', 0):
+                        self.cost_display = f"${engine_summary.get('total_cost_usd', 0.0):.4f}"
+                        self.tokens_display = f"{engine_summary.get('total_tokens', 0):,}"
+                        self.renderer.update_status(
+                            cost=self.cost_display,
+                            tokens=self.tokens_display
+                        )
+                        
             except Exception as e:
                 print(f"Warning: Could not update cost display: {e}")
     
@@ -534,17 +553,25 @@ class GroKitGridIntegration:
                 
                 # Check if we're using SDK response
                 if hasattr(response, 'sdk_response'):
-                    # SDK response format
+                    # SDK response format - update costs immediately
+                    self._update_cost_display()
+                    
                     if reasoning and hasattr(response, 'reasoning_content') and response.reasoning_content:
                         return f"[REASONING]\n{response.reasoning_content}\n\n[RESPONSE]\n{response.content}"
                     else:
                         return response.content if response.content else "I apologize, but I couldn't generate a response."
                 elif args.stream:
-                    # Handle streaming response (requests)
+                    # Handle streaming response (requests) with real-time cost updates
                     assistant_content, tool_calls = self.engine.handle_stream_with_tools(response, brave_key, debug_mode=args.debug)
+                    
+                    # Update cost display after streaming completes
+                    self._update_cost_display()
+                    
                     return assistant_content if assistant_content else "I apologize, but I couldn't generate a response."
                 else:
-                    # Handle non-streaming response (requests)
+                    # Handle non-streaming response (requests) with cost update
+                    self._update_cost_display()
+                    
                     if hasattr(response, 'choices') and response.choices:
                         return response.choices[0].message.content
                     else:
@@ -588,8 +615,10 @@ class GroKitGridIntegration:
                         self.renderer.add_ai_message("assistant", ai_response)
                         self.storage.add_message("assistant", ai_response)
                     
+                    # Force cost display update after response
                     self._update_cost_display()
                     self._update_status("Response received")
+                    self.renderer.render_full_screen()
                     
                 except KeyboardInterrupt:
                     self.running = False

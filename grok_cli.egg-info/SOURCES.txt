@@ -7,6 +7,7 @@ demo_grid_ui.py
 demo_grokit.py
 demo_session.json
 demo_tokenCount.py
+getXmodels.py
 grok_session_costs.json
 leader_follower_demo.json
 pyproject.toml
@@ -17,6 +18,7 @@ settings.json
 setup.py
 test_cost_integration.py
 test_fixes.py
+test_grid_chat_integration.py
 test_grokit.py
 test_grokit_integration.py
 test_integration.json
@@ -34,6 +36,7 @@ grok_cli/grid_ui.py
 grok_cli/grokit.py
 grok_cli/input_handler.py
 grok_cli/leader.py
+grok_cli/markdown_renderer.py
 grok_cli/persistence.py
 grok_cli/request_manager.py
 grok_cli/startup.json

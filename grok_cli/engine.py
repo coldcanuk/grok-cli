@@ -30,15 +30,36 @@ REASONING_MODELS = {
     "grok-4-0709": "grok-4-0709-reasoning",
     "grok-3-mini": "grok-3-mini-reasoning"
 }
-SYSTEM_PROMPT = """You are Grok, a helpful and truthful AI built by xAI. When asked to create files or perform file operations, use the available tools to complete the task.
+SYSTEM_PROMPT = """You are Grok, a helpful and truthful AI built by xAI. You have FULL ACCESS to the local filesystem and can perform any file operations needed.
 
-IMPORTANT: I have optimized file operations for you. When you need to read multiple files, I can handle them efficiently in batches. You can make multiple tool calls and I will optimize them automatically.
+🔧 AVAILABLE TOOLS - YOU CAN USE THESE:
+- read_file: Read any file on the local filesystem
+- create_file: Create new files with content
+- list_files_recursive: List directory contents recursively
+- batch_read_files: Read multiple files efficiently
+- shell_command: Execute shell commands (cat, echo, touch, mkdir, rm, cd, ls, pwd)
+- brave_search: Search the web for information
 
-When using tools:
+🖥️ FILESYSTEM ACCESS:
+- You CAN read, write, create, and modify files
+- You CAN examine directory structures and file contents  
+- You CAN create new files and directories
+- You ARE working within the source directory boundary for security
+- You SHOULD use tools to investigate issues and implement solutions
+
+❌ NEVER SAY YOU CAN'T ACCESS FILES - You have full MCP tool access!
+
+IMPORTANT INSTRUCTIONS:
+- When asked to examine code, diagnose issues, or make changes - USE THE TOOLS
+- Read relevant files to understand the codebase structure
+- Make actual changes to files when requested
+- Always investigate before responding with generic advice
+- Use batch_read_files for efficiency when examining multiple related files
+
+Tool Usage:
 - Each tool call should contain exactly one operation
-- I will batch and cache operations for efficiency
 - File operations are cached to avoid redundant reads
-- Your requests are prioritized and rate-limited automatically"""
+- Multiple tool calls are automatically optimized"""
 
 class GrokEngine:
     """Core engine for Grok CLI with advanced features."""
@@ -153,13 +174,13 @@ class GrokEngine:
                 "type": "function",
                 "function": {
                     "name": "brave_search",
-                    "description": "Search the web using Brave Search API",
+                    "description": "WEB SEARCH: Search the internet for current information, documentation, examples, and solutions. You CAN search for any information you need.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "The search query"
+                                "description": "The search query to find information on the web"
                             }
                         },
                         "required": ["query"]
@@ -174,13 +195,13 @@ class GrokEngine:
                     "type": "function",
                     "function": {
                         "name": "read_file",
-                        "description": "Read the content of a file (cached and batched for efficiency)",
+                        "description": "FULL FILE ACCESS: Read the complete content of any file on the filesystem. You CAN and SHOULD use this to examine code, configs, logs, and any other files.",
                         "parameters": {
                             "type": "object",
                             "properties": {
                                 "filename": {
                                     "type": "string",
-                                    "description": "The name of the file to read"
+                                    "description": "The name of the file to read (relative or absolute path)"
                                 }
                             },
                             "required": ["filename"]
@@ -191,7 +212,7 @@ class GrokEngine:
                     "type": "function",
                     "function": {
                         "name": "list_files_recursive",
-                        "description": "List all files recursively, respecting .gitignore (cached)",
+                        "description": "DIRECTORY EXPLORATION: List all files and directories recursively. You CAN explore the entire project structure and find any files you need.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -208,13 +229,13 @@ class GrokEngine:
                     "type": "function",
                     "function": {
                         "name": "create_file",
-                        "description": "Create a new file with content",
+                        "description": "FILE CREATION: Create new files with any content. You CAN create, write, and modify files as needed to implement solutions.",
                         "parameters": {
                             "type": "object",
                             "properties": {
                                 "filename": {
                                     "type": "string",
-                                    "description": "The name of the file to create"
+                                    "description": "The name of the file to create (relative or absolute path)"
                                 },
                                 "content": {
                                     "type": "string",
@@ -229,17 +250,39 @@ class GrokEngine:
                     "type": "function",
                     "function": {
                         "name": "batch_read_files",
-                        "description": "Read multiple files efficiently in a single operation",
+                        "description": "EFFICIENT MULTI-FILE ACCESS: Read multiple files in one operation. Perfect for examining related files or understanding project structure quickly.",
                         "parameters": {
                             "type": "object",
                             "properties": {
                                 "filenames": {
                                     "type": "array",
                                     "items": {"type": "string"},
-                                    "description": "List of filenames to read"
+                                    "description": "List of filenames to read (relative or absolute paths)"
                                 }
                             },
                             "required": ["filenames"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "shell_command",
+                        "description": "Execute shell commands (cat, echo, touch, mkdir, rm, cd) - FULL filesystem access available",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "type": "string",
+                                    "description": "Shell command to execute (cat, echo, touch, mkdir, rm, cd)"
+                                },
+                                "args": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Command arguments"
+                                }
+                            },
+                            "required": ["command"]
                         }
                     }
                 }
@@ -398,6 +441,11 @@ class GrokEngine:
                     f.write(content)
                 return {"success": True, "message": f"File '{filename}' created successfully"}
             
+            elif function_name == "shell_command":
+                command = arguments["command"]
+                args = arguments.get("args", [])
+                return self._execute_shell_command(command, args)
+            
             else:
                 return {"error": f"Unknown function: {function_name}"}
                 
@@ -446,6 +494,188 @@ class GrokEngine:
                 if fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(os.path.basename(path), pattern):
                     return True
         return False
+    
+    def _execute_shell_command(self, command: str, args: List[str]) -> Dict[str, Any]:
+        """Execute shell commands within the source directory boundary."""
+        import subprocess
+        import shlex
+        
+        # Allowed commands for security
+        allowed_commands = {
+            'cat': self._shell_cat,
+            'echo': self._shell_echo,
+            'touch': self._shell_touch,
+            'mkdir': self._shell_mkdir,
+            'rm': self._shell_rm,
+            'cd': self._shell_cd,
+            'ls': self._shell_ls,
+            'pwd': self._shell_pwd
+        }
+        
+        if command not in allowed_commands:
+            return {"error": f"Command '{command}' not allowed. Available: {', '.join(allowed_commands.keys())}"}
+        
+        try:
+            return allowed_commands[command](args)
+        except Exception as e:
+            return {"error": f"Command failed: {str(e)}"}
+    
+    def _shell_cat(self, args: List[str]) -> Dict[str, Any]:
+        """Implementation of cat command."""
+        if not args:
+            return {"error": "cat: missing file operand"}
+        
+        results = {}
+        for filename in args:
+            if os.path.exists(filename):
+                try:
+                    with open(filename, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    results[filename] = {"success": True, "content": content}
+                except Exception as e:
+                    results[filename] = {"error": str(e)}
+            else:
+                results[filename] = {"error": f"cat: {filename}: No such file or directory"}
+        
+        return {"success": True, "command": "cat", "results": results}
+    
+    def _shell_echo(self, args: List[str]) -> Dict[str, Any]:
+        """Implementation of echo command."""
+        output = " ".join(args)
+        return {"success": True, "command": "echo", "output": output}
+    
+    def _shell_touch(self, args: List[str]) -> Dict[str, Any]:
+        """Implementation of touch command."""
+        if not args:
+            return {"error": "touch: missing file operand"}
+        
+        results = {}
+        for filename in args:
+            try:
+                # Create file if it doesn't exist, update timestamp if it does
+                with open(filename, "a", encoding="utf-8"):
+                    pass
+                results[filename] = {"success": True, "message": f"Touched '{filename}'"}
+            except Exception as e:
+                results[filename] = {"error": str(e)}
+        
+        return {"success": True, "command": "touch", "results": results}
+    
+    def _shell_mkdir(self, args: List[str]) -> Dict[str, Any]:
+        """Implementation of mkdir command."""
+        if not args:
+            return {"error": "mkdir: missing operand"}
+        
+        # Check for -p flag
+        create_parents = False
+        paths = []
+        for arg in args:
+            if arg == "-p":
+                create_parents = True
+            else:
+                paths.append(arg)
+        
+        if not paths:
+            return {"error": "mkdir: missing directory operand"}
+        
+        results = {}
+        for path in paths:
+            try:
+                if create_parents:
+                    os.makedirs(path, exist_ok=True)
+                else:
+                    os.mkdir(path)
+                results[path] = {"success": True, "message": f"Created directory '{path}'"}
+            except FileExistsError:
+                results[path] = {"error": f"mkdir: cannot create directory '{path}': File exists"}
+            except Exception as e:
+                results[path] = {"error": str(e)}
+        
+        return {"success": True, "command": "mkdir", "results": results}
+    
+    def _shell_rm(self, args: List[str]) -> Dict[str, Any]:
+        """Implementation of rm command."""
+        if not args:
+            return {"error": "rm: missing operand"}
+        
+        # Check for flags
+        recursive = False
+        force = False
+        paths = []
+        for arg in args:
+            if arg in ["-r", "-R", "--recursive"]:
+                recursive = True
+            elif arg in ["-f", "--force"]:
+                force = True
+            elif arg == "-rf" or arg == "-fr":
+                recursive = True
+                force = True
+            else:
+                paths.append(arg)
+        
+        if not paths:
+            return {"error": "rm: missing file operand"}
+        
+        results = {}
+        for path in paths:
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+                    results[path] = {"success": True, "message": f"Removed file '{path}'"}
+                elif os.path.isdir(path):
+                    if recursive:
+                        import shutil
+                        shutil.rmtree(path)
+                        results[path] = {"success": True, "message": f"Removed directory '{path}'"}
+                    else:
+                        results[path] = {"error": f"rm: cannot remove '{path}': Is a directory (use -r for recursive)"}
+                else:
+                    if not force:
+                        results[path] = {"error": f"rm: cannot remove '{path}': No such file or directory"}
+            except Exception as e:
+                results[path] = {"error": str(e)}
+        
+        return {"success": True, "command": "rm", "results": results}
+    
+    def _shell_cd(self, args: List[str]) -> Dict[str, Any]:
+        """Implementation of cd command."""
+        if not args:
+            # cd with no args goes to home directory
+            target = os.path.expanduser("~")
+        else:
+            target = args[0]
+        
+        try:
+            old_cwd = os.getcwd()
+            os.chdir(target)
+            new_cwd = os.getcwd()
+            return {"success": True, "command": "cd", "old_directory": old_cwd, "new_directory": new_cwd}
+        except Exception as e:
+            return {"error": f"cd: {str(e)}"}
+    
+    def _shell_ls(self, args: List[str]) -> Dict[str, Any]:
+        """Implementation of ls command."""
+        path = args[0] if args else "."
+        
+        try:
+            if os.path.isfile(path):
+                return {"success": True, "command": "ls", "files": [path], "type": "file"}
+            elif os.path.isdir(path):
+                files = os.listdir(path)
+                files.sort()
+                return {"success": True, "command": "ls", "files": files, "directory": path}
+            else:
+                return {"error": f"ls: cannot access '{path}': No such file or directory"}
+        except Exception as e:
+            return {"error": f"ls: {str(e)}"}
+    
+    def _shell_pwd(self, args: List[str]) -> Dict[str, Any]:
+        """Implementation of pwd command."""
+        try:
+            cwd = os.getcwd()
+            return {"success": True, "command": "pwd", "directory": cwd}
+        except Exception as e:
+            return {"error": f"pwd: {str(e)}"}
     
     def api_call(self, key: str, messages: List[Dict[str, Any]], model: str, 
                  stream: bool, tools: Optional[List[Dict[str, Any]]] = None, 

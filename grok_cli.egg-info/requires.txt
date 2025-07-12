@@ -1,6 +1,8 @@
 requests>=2.25.0
 tiktoken>=0.5.0
 xai-sdk>=0.0.1a1
+markdown>=3.4.0
+pygments>=2.15.0
 
 [dev]
 pytest>=6.0

@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 
+from .markdown_renderer import TerminalMarkdownRenderer
+
 
 class GridRenderer:
     """Terminal grid rendering system with updateable content areas."""
@@ -29,6 +31,9 @@ class GridRenderer:
         
         # Color support
         self.colors = self._init_colors()
+        
+        # Markdown renderer for chat content
+        self.markdown_renderer = TerminalMarkdownRenderer(width=self.width - 6)
         
         # Content storage
         self.header_content = {"title": "GROKIT", "subtitle": "Interactive Grok Interface", "version": ""}
@@ -158,9 +163,15 @@ class GridRenderer:
     
     def _calculate_message_height(self, msg: Dict, width: int) -> int:
         """Calculate how many lines a message will take."""
-        # Role line + content lines
-        content_lines = len(self._wrap_text(msg['content'], width - 4))
-        return 1 + content_lines  # +1 for role header
+        # Role line + markdown-rendered content lines
+        if msg['role'] in ['assistant', 'user'] and msg.get('content'):
+            # Use markdown renderer to get actual line count
+            rendered_lines = self.markdown_renderer.render_markdown(msg['content'])
+            return 1 + len(rendered_lines)  # +1 for role header
+        else:
+            # Fallback for system messages
+            content_lines = len(self._wrap_text(msg.get('content', ''), width - 4))
+            return 1 + content_lines
     
     def _wrap_text(self, text: str, width: int) -> List[str]:
         """Wrap text to fit within specified width."""
@@ -198,14 +209,26 @@ class GridRenderer:
         header = f"{role.upper()}: {timestamp}"
         print(f"{self.colors[color]}{header}{self.colors['end']}", end="")
         
-        # Message content
-        content_lines = self._wrap_text(msg['content'], width - 2)
         lines_used = 1
         
-        for i, line in enumerate(content_lines):
-            self.move_cursor(y + 1 + i, x + 2)
-            print(f"{self.colors['end']}{line}{self.colors['end']}", end="")
-            lines_used += 1
+        # Message content with markdown rendering
+        if role in ['assistant', 'user'] and msg.get('content'):
+            # Use markdown renderer for rich formatting
+            rendered_lines = self.markdown_renderer.render_markdown(msg['content'])
+            
+            for i, line in enumerate(rendered_lines):
+                self.move_cursor(y + 1 + i, x + 2)
+                # Note: line already contains ANSI color codes from markdown renderer
+                print(line, end="")
+                lines_used += 1
+        else:
+            # Fallback for system messages (no markdown)
+            content_lines = self._wrap_text(msg.get('content', ''), width - 2)
+            
+            for i, line in enumerate(content_lines):
+                self.move_cursor(y + 1 + i, x + 2)
+                print(f"{self.colors['end']}{line}{self.colors['end']}", end="")
+                lines_used += 1
         
         return lines_used
     
