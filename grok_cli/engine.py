@@ -13,6 +13,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import requests
 
 from .request_manager import RequestManager, RequestPriority
+from .utils import get_random_message, load_grok_context, create_grok_directory_template
 
 API_URL = "https://api.x.ai/v1/chat/completions"
 DEFAULT_MODEL = "grok-4"
@@ -34,6 +35,8 @@ class GrokEngine:
         self.config = self.load_config()
         self.tools = self.build_tool_definitions()
         self.last_request_time = 0
+        self.source_directory = None
+        self.project_context = ""
         
     def load_config(self) -> Dict[str, Any]:
         """Load configuration from settings.json."""
@@ -42,6 +45,37 @@ class GrokEngine:
             with open(config_path, "r") as f:
                 return json.load(f)
         return {}
+    
+    def set_source_directory(self, src_path: str):
+        """Set the source directory and load project context."""
+        self.source_directory = os.path.abspath(src_path)
+        
+        # Try to create .grok directory template if it doesn't exist
+        created = create_grok_directory_template(self.source_directory)
+        if created:
+            print(f">> Created .grok directory template in {self.source_directory}")
+        
+        # Load project context
+        self.project_context = load_grok_context(self.source_directory)
+        if self.project_context:
+            print(f">> Loaded project context from .grok directory")
+        else:
+            print(f">> No project context found in .grok directory")
+    
+    def get_enhanced_system_prompt(self) -> str:
+        """Get system prompt enhanced with project context."""
+        base_prompt = SYSTEM_PROMPT
+        
+        if self.project_context:
+            enhanced_prompt = f"{base_prompt}{self.project_context}"
+            enhanced_prompt += f"\n\nIMPORTANT: You are working within the source directory: {self.source_directory}\n"
+            enhanced_prompt += "All file operations should be relative to this directory boundary. Respect the project context provided above."
+            return enhanced_prompt
+        
+        if self.source_directory:
+            return f"{base_prompt}\n\nIMPORTANT: You are working within the source directory: {self.source_directory}\nAll file operations should be relative to this directory boundary."
+        
+        return base_prompt
     
     def build_tool_definitions(self) -> List[Dict[str, Any]]:
         """Build tool definitions for enabled MCP servers."""
@@ -363,15 +397,15 @@ class GrokEngine:
         time_since_last = time.time() - self.last_request_time
         if time_since_last < 1.0:  # If less than 1 second, wait a bit
             delay = 1.0 - time_since_last
-            print(f"⏱️ Pacing request... ({delay:.1f}s)")
+            print(f">> Pacing request... ({delay:.1f}s)")
             time.sleep(delay)
         
         fun_messages = [
-            "🎯 Optimizing request for best results...",
-            "🚀 Launching your perfectly timed query...",
-            "🧠 Grok is ready and waiting...",
-            "✨ Request dispatched with optimal timing...",
-            "🎪 The optimized show begins...",
+            ">> Optimizing request for best results...",
+            ">> Launching your perfectly timed query...",
+            ">> Grok is ready and waiting...",
+            ">> Request dispatched with optimal timing...",
+            ">> The optimized show begins...",
         ]
         
         try:
@@ -399,7 +433,7 @@ class GrokEngine:
                 print(f"Rate limit - optimizing timing. Waiting {wait_time:.1f}s... (attempt {retry_count}/8)")
                 
                 if retry_count >= 8:
-                    print("\n💡 Tip: The optimized CLI is working! Consider spreading requests further apart.")
+                    print("\n>> Tip: The optimized CLI is working! Consider spreading requests further apart.")
                     sys.exit("API Error: Too many requests. The optimization is working - just need to pace things more.")
                 
                 # Enhanced progress bar
@@ -407,7 +441,7 @@ class GrokEngine:
                 while time.time() - start_time < wait_time:
                     elapsed = time.time() - start_time
                     progress = int((elapsed / wait_time) * 30)
-                    bar = "█" * progress + "░" * (30 - progress)
+                    bar = "#" * progress + "-" * (30 - progress)
                     remaining = wait_time - elapsed
                     print(f"[{bar}] {remaining:.1f}s remaining", end="\r", flush=True)
                     time.sleep(0.1)
@@ -436,38 +470,45 @@ class GrokEngine:
                         pass  # Normal response, no tools needed
                     return
                 
-                print("\n[Executing tool calls...]")
+                print(f"\n[Calling {len(tool_calls)} tool(s)...]")
                 messages.append({"role": "assistant", "content": assistant_content or None, "tool_calls": tool_calls})
                 
-                # Execute tool calls using request manager
-                for tool_call in tool_calls:
-                    self.request_manager.add_request(
-                        tool_call['function']['name'],
-                        json.loads(tool_call['function']['arguments']),
-                        priority=RequestPriority.MEDIUM
-                    )
-                
-                results = asyncio.run(self.request_manager.process_queue())
-                
-                # Process tool call results
+                # Execute tool calls directly
                 tool_call_failures = 0
-                for tool_call in tool_calls:
-                    result_key = next((k for k in results if tool_call['function']['name'] in k), None)
-                    result = results.get(result_key, {"error": "Tool execution result not found"})
-
-                    if "error" in result:
+                for i, tool_call in enumerate(tool_calls, 1):
+                    tool_name = tool_call['function']['name']
+                    print(f"  >> Getting {tool_name} from the toolchest ({i}/{len(tool_calls)})")
+                    print(f"     {get_random_message('thinking')}")
+                    
+                    try:
+                        result = self.execute_tool_call(tool_call, brave_key)
+                        
+                        if "error" in result:
+                            tool_call_failures += 1
+                            print(f"     [FAILED] {tool_name}: {result['error']}")
+                        else:
+                            print(f"     [DONE] {tool_name} completed successfully")
+                        
+                        is_debug = args.debug if args.debug is not None else bool(os.getenv("GROK_DEBUG"))
+                        if is_debug:
+                            print(f"Tool result: {json.dumps(result, indent=2)}")
+                        
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call["id"],
+                            "content": json.dumps(result)
+                        })
+                        
+                    except Exception as e:
                         tool_call_failures += 1
-                        print(f"[WARNING] Tool call failed: {result['error']}")
-                    
-                    is_debug = args.debug if args.debug is not None else bool(os.getenv("GROK_DEBUG"))
-                    if is_debug:
-                        print(f"Tool result: {json.dumps(result, indent=2)}")
-                    
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call["id"],
-                        "content": json.dumps(result)
-                    })
+                        error_result = {"error": f"Tool execution exception: {str(e)}"}
+                        print(f"     [EXCEPTION] {tool_name}: {str(e)}")
+                        
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call["id"],
+                            "content": json.dumps(error_result)
+                        })
                 
                 if tool_call_failures == len(tool_calls):
                     print("\n[ERROR] All tool calls failed. Asking Grok to retry...")
@@ -491,32 +532,41 @@ class GrokEngine:
                 if "content" in message and message["content"]:
                     print(message["content"])
                 
-                print("\n[Executing tool calls...]")
+                print(f"\n[Calling {len(message['tool_calls'])} tool(s)...]")
                 messages.append(message)
                 
-                # Execute tool calls
-                for tool_call in message["tool_calls"]:
-                    self.request_manager.add_request(
-                        tool_call['function']['name'],
-                        json.loads(tool_call['function']['arguments']),
-                        priority=RequestPriority.MEDIUM
-                    )
-
-                results = asyncio.run(self.request_manager.process_queue())
-
-                for tool_call in message["tool_calls"]:
-                    result_key = next((k for k in results if tool_call['function']['name'] in k), None)
-                    result = results.get(result_key, {"error": "Tool execution result not found"})
-
-                    is_debug = args.debug if args.debug is not None else bool(os.getenv("GROK_DEBUG"))
-                    if is_debug:
-                        print(f"Tool result: {json.dumps(result, indent=2)}")
-                    
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call["id"],
-                        "content": json.dumps(result)
-                    })
+                # Execute tool calls directly
+                for i, tool_call in enumerate(message["tool_calls"], 1):
+                    tool_name = tool_call['function']['name']
+                    print(f"  >> Getting {tool_name} from the toolchest ({i}/{len(message['tool_calls'])})")
+                    print(f"     {get_random_message('thinking')}")
+                    try:
+                        result = self.execute_tool_call(tool_call, brave_key)
+                        
+                        if "error" in result:
+                            print(f"     [FAILED] {tool_name}: {result['error']}")
+                        else:
+                            print(f"     [DONE] {tool_name} completed successfully")
+                        
+                        is_debug = args.debug if args.debug is not None else bool(os.getenv("GROK_DEBUG"))
+                        if is_debug:
+                            print(f"Tool result: {json.dumps(result, indent=2)}")
+                        
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call["id"],
+                            "content": json.dumps(result)
+                        })
+                        
+                    except Exception as e:
+                        error_result = {"error": f"Tool execution exception: {str(e)}"}
+                        print(f"     [EXCEPTION] {tool_name}: {str(e)}")
+                        
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call["id"],
+                            "content": json.dumps(error_result)
+                        })
                 
                 print("\n[Getting response...]")
         
@@ -525,20 +575,12 @@ class GrokEngine:
     
     def display_startup_message(self):
         """Display an optimized startup message."""
-        startup_messages = [
-            "🚀 Launching optimized Grok CLI...",
-            "⚡ Powering up the efficiency engine...",
-            "🎯 Optimized for speed and intelligence...",
-            "🔧 Advanced request management active...",
-            "💫 Smart batching and caching enabled...",
-        ]
-        
-        print(f"\n{random.choice(startup_messages)}")
-        print("✨ This version includes advanced rate limiting and request optimization!")
-        print("📊 Features: Smart batching, caching, and intelligent request spacing\n")
+        print(f"\n{get_random_message('startup')}")
+        print(">> This version includes advanced rate limiting and request optimization!")
+        print(">> Features: Smart batching, caching, and intelligent request spacing\n")
     
     def display_queue_status(self):
         """Display current optimization status."""
         status = self.request_manager.get_queue_status()
         if status["queue_length"] > 0 or status["cache_size"] > 0:
-            print(f"📊 Queue: {status['queue_length']} | Cache: {status['cache_size']} items")
+            print(f">> Queue: {status['queue_length']} | Cache: {status['cache_size']} items")

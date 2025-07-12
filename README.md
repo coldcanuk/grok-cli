@@ -191,23 +191,60 @@ Create or edit `settings.json` in the project directory:
 
 ## 🎯 Usage
 
+### ⚠️ IMPORTANT: Source Directory Requirement
+
+**All commands require the `--src` flag** to specify your working directory. This enables:
+
+- **Portable operation**: Run Grok CLI from anywhere while working on specific projects
+- **Project context**: Automatic loading of `.grok/` directory for project-specific instructions
+- **Security boundary**: Limits file operations to your specified directory
+- **Context awareness**: Grok understands your project structure and requirements
+
+```bash
+# REQUIRED: Always specify source directory
+grok-cli --src /path/to/your/project --prompt "Your question here"
+
+# Examples:
+grok-cli --src /home/user/my-webapp --prompt "Review the React components"
+grok-cli --src /mnt/c/dev/my-api --chat
+grok-cli --src . --prompt "What is this project about?"  # Current directory
+```
+
+### Project Context with .grok Directory
+
+Grok CLI automatically looks for a `.grok/` directory in your source directory to understand your project better:
+
+- **`.grok/README.md`**: Project overview and goals
+- **`.grok/*.mdc`**: Markdown context files with coding standards, architecture docs, etc.
+
+If `.grok/` doesn't exist, Grok CLI will create a template for you.
+
+**Example .mdc files:**
+```
+.grok/
+├── README.md              # Project overview
+├── coding-standards.mdc   # Your coding style
+├── architecture.mdc       # System design
+└── api-docs.mdc          # API documentation
+```
+
 ### Basic Commands
 
 ```bash
-# Single prompt
-grok-cli --prompt "What is the capital of France?"
+# Single prompt (note: --src is required)
+grok-cli --src /path/to/project --prompt "What is the capital of France?"
 
 # Interactive chat mode
-grok-cli --chat
+grok-cli --src /path/to/project --chat
 
 # With image analysis
-grok-cli --prompt "What's in this image?" --image path/to/image.jpg
+grok-cli --src /path/to/project --prompt "What's in this image?" --image path/to/image.jpg
 
 # Streaming mode with progress indicators
-grok-cli --prompt "Write a poem about AI" --stream
+grok-cli --src /path/to/project --prompt "Write a poem about AI" --stream
 
 # Using different model
-grok-cli --prompt "Hello" --model grok-beta
+grok-cli --src /path/to/project --prompt "Hello" --model grok-beta
 
 # Run self-tests
 grok-cli --test
@@ -215,7 +252,7 @@ grok-cli --test
 
 ### Interactive Chat Commands
 
-Once in chat mode (`grok-cli --chat`):
+Once in chat mode (`grok-cli --src /path/to/project --chat`):
 - `/quit` - Exit the chat
 - `/clear` - Clear conversation history  
 - `/save <filename>` - Save conversation to JSON file
@@ -224,19 +261,19 @@ Once in chat mode (`grok-cli --chat`):
 
 ```bash
 # Complex prompts (use quotes to handle special characters)
-grok-cli --prompt 'Create a `README.md` file with installation instructions'
+grok-cli --src /path/to/project --prompt 'Create a `README.md` file with installation instructions'
 
 # Enable debug mode for detailed tool execution logs
-grok-cli --debug 1 --prompt "List all Python files in this project"
+grok-cli --src /path/to/project --debug 1 --prompt "List all Python files in this project"
 
 # Web search (requires BRAVE_SEARCH_API_KEY)
-grok-cli --prompt "What are the latest developments in AI?"
+grok-cli --src /path/to/project --prompt "What are the latest developments in AI?"
 
 # File operations
-grok-cli --prompt "Create a Python script that prints 'Hello World' and save it as hello.py"
+grok-cli --src /path/to/project --prompt "Create a Python script that prints 'Hello World' and save it as hello.py"
 
 # Batch file operations
-grok-cli --prompt "Read all Python files in the grok_cli directory and summarize their purpose"
+grok-cli --src /path/to/project --prompt "Read all Python files in the grok_cli directory and summarize their purpose"
 ```
 
 ## 🔧 Architecture

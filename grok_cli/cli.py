@@ -8,8 +8,8 @@ import os
 import random
 import sys
 
-from .engine import GrokEngine, DEFAULT_MODEL, SYSTEM_PROMPT
-from .utils import get_api_key, build_vision_content
+from .engine import GrokEngine, DEFAULT_MODEL
+from .utils import get_api_key, build_vision_content, get_random_message
 
 def single_prompt(args, engine: GrokEngine):
     """Handle single prompt mode."""
@@ -19,7 +19,7 @@ def single_prompt(args, engine: GrokEngine):
     content = build_vision_content(args.prompt, args.image)
     
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": engine.get_enhanced_system_prompt()},
         {"role": "user", "content": content}
     ]
     
@@ -27,17 +27,11 @@ def single_prompt(args, engine: GrokEngine):
 
 def interactive_chat(args, engine: GrokEngine):
     """Handle interactive chat mode."""
-    startup_messages = [
-        "🥔 Throwing a potato down the hall to get Grok's attention...",
-        "🔔 Ringing the consciousness bell...",
-        "🎯 Aiming your query at the cosmic bullseye...",
-    ]
-    
-    print(f"\n{random.choice(startup_messages)}\n")
+    print(f"\n{get_random_message('startup')}\n")
     
     key, brave_key = get_api_key(args)
     
-    history = [{"role": "system", "content": SYSTEM_PROMPT}]
+    history = [{"role": "system", "content": engine.get_enhanced_system_prompt()}]
     print("Interactive chat started. Type /quit to exit, /clear to reset history, /save <file> to save.")
     print(f"Available tools: {[tool['function']['name'] for tool in engine.tools]}")
     
@@ -50,7 +44,7 @@ def interactive_chat(args, engine: GrokEngine):
         if user_input == "/quit":
             break
         elif user_input == "/clear":
-            history = [{"role": "system", "content": SYSTEM_PROMPT}]
+            history = [{"role": "system", "content": engine.get_enhanced_system_prompt()}]
             print("History cleared.")
             continue
         elif user_input.startswith("/save "):
@@ -96,6 +90,7 @@ def main():
     parser.add_argument("--api-key", help="API key (prefer env var XAI_API_KEY for security).")
     parser.add_argument("--image", help="Image URL or local path for vision.")
     parser.add_argument("--debug", type=int, choices=[0, 1], help="Debug mode: 1=on, 0=off (overrides GROK_DEBUG env var).")
+    parser.add_argument("--src", required=True, help="Source directory to operate from (REQUIRED). Grok CLI will work within this directory boundary and load context from .grok/ subdirectory.")
     parser.add_argument("--test", action="store_true", help="Run self-tests.")
     
     args = parser.parse_args()
@@ -103,6 +98,14 @@ def main():
     if args.test:
         test_mode()
         return
+
+    # Validate source directory
+    if not os.path.isdir(args.src):
+        print(f"Error: Source directory '{args.src}' does not exist.")
+        sys.exit(1)
+    
+    # Set the working directory boundary
+    engine.set_source_directory(args.src)
 
     if not args.prompt and not args.chat:
         parser.print_help()
