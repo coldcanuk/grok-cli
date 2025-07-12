@@ -157,8 +157,8 @@ class EnhancedInputHandler:
             "/multi": self._handle_multiline_toggle,
             "/optimize": self._handle_optimize_toggle,
             "/history": self._handle_history,
-            "/undo": self._handle_undo,
-            "/help": self._handle_help
+            "/undo": self._handle_undo
+            # Note: /help removed - handled by main command processor in grokit.py
         }
         
         # Undo stack
