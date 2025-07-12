@@ -246,6 +246,10 @@ grok-cli --src /path/to/project --lead  # Interactive objective input
 grok-cli --src /path/to/project --cost --prompt "Your question here"
 grok-cli --src /path/to/project --cost --chat  # Interactive chat with cost tracking
 
+# GroKit - Menu-driven interface 🎮
+grokit --src /path/to/project  # Launch interactive menu
+grokit  # Use current directory
+
 # With image analysis
 grok-cli --src /path/to/project --prompt "What's in this image?" --image path/to/image.jpg
 
@@ -339,6 +343,78 @@ The leader creates `tempWork/followMe.md` containing:
 - 🚀 **Feature Implementation**: New functionality requiring multiple phases
 - 🔧 **Architecture Changes**: System-wide modifications with careful planning
 - 📊 **Performance Optimization**: Systematic approach to bottleneck resolution
+
+### 🎮 GroKit - Interactive Menu Interface
+
+Revolutionary menu-driven interface that makes grok-cli accessible and user-friendly:
+
+#### How It Works
+
+**Menu-Driven Navigation**: Clean, intuitive interface similar to claude-code
+- Interactive menu system with numbered options
+- Color-coded interface with cross-platform compatibility
+- Real-time cost tracking integration
+
+**Enhanced Input System**: Advanced multi-line input support
+- Multi-line mode: Type `###` on new line to submit
+- Input history and editing capabilities  
+- Cross-platform keyboard handling
+
+**Intelligent Integration**: Seamless grok-cli command routing
+- Automatic source directory detection
+- Cost tracking enabled by default
+- Error handling with user-friendly messages
+
+#### Usage Examples
+
+```bash
+# Launch GroKit in current directory
+grokit
+
+# Launch in specific directory  
+grokit --src /path/to/project
+
+# GroKit will present a menu:
+# 1. Interactive Chat
+# 2. Leader Mode (Strategic Planning)  
+# 3. Single Prompt
+# 4. Settings
+# 5. Cost Analysis
+# 6. Help
+# 7. Exit
+```
+
+#### GroKit Features
+
+**Interactive Chat Mode**:
+- Seamless conversation with Grok
+- `/leader` command for in-chat strategic planning
+- `/multi` command to toggle multi-line input
+- `/costs` command for real-time cost summary
+- `/help` for command reference
+
+**Leader Integration**: Leader mode available as menu option or in-chat tool
+- Activate via menu option 2 for dedicated leader mode
+- Use `/leader [objective]` during chat for contextual planning
+- Automatic cost tracking for leader-follower workflows
+
+**Cost Transparency**: Built-in cost monitoring
+- Real-time session cost display
+- Cost warnings for expensive operations
+- Detailed cost breakdowns and analysis
+
+**Smart Interface**: Adaptive and user-friendly
+- Unicode box drawing with ASCII fallback
+- Color support with graceful degradation
+- Cross-platform keyboard handling (Windows/Linux/WSL)
+
+#### Best Use Cases
+
+- 🎯 **Interactive Development**: Natural conversation flow with cost awareness
+- 📋 **Project Planning**: Easy access to leader mode for strategic planning
+- 💰 **Cost-Conscious Usage**: Real-time monitoring of API costs
+- 🔄 **Mixed Workflows**: Seamless switching between chat and leader modes
+- 🚀 **Rapid Prototyping**: Quick access to all grok-cli functionality
 
 ### 💰 Cost Tracking Mode (`--cost`)
 

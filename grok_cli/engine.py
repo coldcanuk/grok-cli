@@ -535,8 +535,14 @@ class GrokEngine:
                 
                 # For streaming, estimate token usage since it's not provided in the stream
                 if self.cost_tracking_enabled and self.token_counter and assistant_content:
-                    input_tokens = self.token_counter.count_messages_tokens(messages, args.model)
-                    output_tokens = self.token_counter.count_tokens(assistant_content)
+                    # Validate assistant_content before token counting
+                    if isinstance(assistant_content, str) and assistant_content.strip():
+                        input_tokens = self.token_counter.count_messages_tokens(messages, args.model)
+                        output_tokens = self.token_counter.count_tokens(assistant_content)
+                    else:
+                        # Handle invalid or empty content
+                        input_tokens = self.token_counter.count_messages_tokens(messages, args.model)
+                        output_tokens = 0
                     
                     self.token_counter.track_api_call(
                         input_tokens=input_tokens,

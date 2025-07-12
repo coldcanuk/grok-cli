@@ -59,6 +59,7 @@ Issues = "https://github.com/yourusername/grok-cli/issues"
 
 [project.scripts]
 grok-cli = "grok_cli.cli:main"
+grokit = "grok_cli.grokit:main"
 
 [tool.setuptools]
 packages = ["grok_cli"]

@@ -32,6 +32,8 @@ grok-cli --src . --prompt "Hello, test prompt"
 # All commands require --src flag (source directory)
 grok-cli --src /path/to/project --prompt "Your question"
 grok-cli --src . --chat  # Interactive mode
+grok-cli --src . --cost --prompt "Your question"  # Cost tracking
+grokit --src .  # GroKit menu interface
 grok-cli --src . --help  # Show all options
 ```
 
@@ -70,6 +72,20 @@ grok-cli --src . --help  # Show all options
 - **settings.json**: Main configuration (model, streaming, MCP server settings)
 - **Environment variables**: XAI_API_KEY (required), BRAVE_SEARCH_API_KEY (optional), GROK_DEBUG
 - **startup.json/thinking.json**: Fun messages for user experience
+
+### GroKit Interface System
+**Interactive Menu Interface**: User-friendly alternative to command-line usage
+- Clean menu-driven navigation with numbered options
+- Advanced multi-line input with `###` submission syntax
+- In-chat leader mode integration via `/leader` command
+- Real-time cost tracking and session management
+- Cross-platform compatibility with Unicode/ASCII fallback
+
+**Key Components**:
+- **grokit.py**: Main interface with menu system and grok-cli integration
+- **input_handler.py**: Enhanced input handling with multi-line support
+- Intelligent command routing through grok-cli subprocess calls
+- Persistent session cost tracking and display
 
 ### File Operations Caching
 The engine includes sophisticated caching for file operations to avoid redundant reads during tool calls. File operations are automatically batched when possible.

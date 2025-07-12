@@ -121,8 +121,23 @@ class TokenCounter:
     
     def count_tokens(self, text: str) -> int:
         """Count tokens in text using tiktoken or approximation."""
+        # Input validation - ensure text is a string
+        if text is None:
+            return 0
+        if not isinstance(text, str):
+            text = str(text)
+        
+        # Handle empty strings
+        if not text.strip():
+            return 0
+            
         if self.tokenizer:
-            return len(self.tokenizer.encode(text))
+            try:
+                return len(self.tokenizer.encode(text))
+            except Exception as e:
+                print(f"Warning: Tokenizer error: {e}, falling back to approximation")
+                # Fall back to approximation if tokenizer fails
+                return max(1, len(text) // 4)
         else:
             # Rough approximation: ~4 characters per token
             return max(1, len(text) // 4)
