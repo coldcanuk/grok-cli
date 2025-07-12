@@ -328,9 +328,8 @@ class EnhancedInputHandler:
                         print("(Buffer cleared)")
                         continue
                     
-                    elif command == "/help":
-                        self._show_multiline_help()
-                        continue
+                    # Note: /help is handled by the main command processor
+                    # Removed conflicting handler that was intercepting the command
                     
                     elif command == "/undo":
                         if self.buffer_lines:

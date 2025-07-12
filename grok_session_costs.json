@@ -1,11 +1,11 @@
 {
-  "total_input_cost": 0.048009,
-  "total_output_cost": 0.005835,
+  "total_input_cost": 0.049647000000000004,
+  "total_output_cost": 0.012657,
   "total_cached_cost": 0.0,
   "total_search_cost": 0.0,
-  "total_cost": 0.053844,
-  "total_input_tokens": 16003,
-  "total_output_tokens": 389,
+  "total_cost": 0.062304000000000005,
+  "total_input_tokens": 17641,
+  "total_output_tokens": 2663,
   "total_cached_tokens": 0,
   "total_searches": 0,
   "start_time": "2025-07-12T09:59:31.728418+00:00",
@@ -54,6 +54,15 @@
       "model": "grok-4",
       "timestamp": "2025-07-12T10:48:42.569045+00:00",
       "operation_type": "chat_stream"
+    },
+    {
+      "input_tokens": 1638,
+      "output_tokens": 2274,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-3-mini",
+      "timestamp": "2025-07-12T16:19:29.790651+00:00",
+      "operation_type": "leader_planning"
     }
   ]
 }

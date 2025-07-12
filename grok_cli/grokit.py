@@ -736,20 +736,19 @@ class GroKitGridIntegration:
     
     def _show_help(self):
         """Show help information."""
-        help_msg = """# GroKit Grid Commands
+        help_msg = """GroKit Grid Commands
 
-## Available Commands:
+Available Commands:
+/leader [objective] - Strategic planning mode
+/reasoning [prompt] - Deep reasoning mode  
+/paste - Paste content from clipboard
+/multi - Toggle multi-line input mode
+/costs - Show session cost summary
+/clear - Clear chat history
+/help - Show this help message
+/quit - Exit to main menu
 
-- `/leader [objective]` - Strategic planning mode
-- `/reasoning [prompt]` - Deep reasoning mode  
-- `/paste` - Paste content from clipboard
-- `/multi` - Toggle multi-line input mode
-- `/costs` - Show session cost summary
-- `/clear` - Clear chat history
-- `/help` - Show this help message
-- `/quit` - Exit to main menu
-
-## Tips:
+Tips:
 - Start typing to chat with Grok
 - Use arrow keys to navigate input
 - Ctrl+C to cancel current operation"""
