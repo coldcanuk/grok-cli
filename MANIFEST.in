@@ -1,0 +1,22 @@
+# Include additional files in the package distribution
+include README.md
+include LICENSE
+include CLAUDE.md
+include requirements*.txt
+include settings.json
+
+# Include package data
+recursive-include grok_cli *.json
+
+# Exclude development and build files
+exclude .gitignore
+exclude create_tableofcontents.py
+exclude tableofcontents.md
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * *.so
+recursive-exclude * .DS_Store
+exclude venv/
+exclude .venv/
+exclude tempWork/
+exclude grok_cli.egg-info/

@@ -1,0 +1,6 @@
+certifi==2025.7.9
+charset-normalizer==3.4.2
+-e git+ssh://git@github.com/coldcanuk/grok-cli.git@123dac738ff6572da1ce13f1af156d362b420053#egg=grok_cli
+idna==3.10
+requests==2.32.4
+urllib3==2.5.0

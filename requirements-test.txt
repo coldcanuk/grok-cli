@@ -1,0 +1,12 @@
+# Test dependencies for Grok CLI
+# Install with: pip install -r requirements-test.txt
+
+# Core runtime dependencies
+-r requirements.txt
+
+# Testing framework and utilities
+pytest>=6.0
+pytest-cov>=2.0
+pytest-mock>=3.0
+pytest-xdist>=2.0  # parallel test execution
+coverage>=5.0

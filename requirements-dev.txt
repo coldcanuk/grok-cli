@@ -1,0 +1,30 @@
+# Development dependencies for Grok CLI
+# Install with: pip install -r requirements-dev.txt
+
+# Core runtime dependencies
+-r requirements.txt
+
+# Testing
+pytest>=6.0
+pytest-cov>=2.0
+pytest-mock>=3.0
+
+# Code formatting and linting
+black>=21.0
+flake8>=3.8
+isort>=5.0
+
+# Type checking
+mypy>=0.800
+
+# Pre-commit hooks
+pre-commit>=2.0
+
+# Documentation
+sphinx>=4.0
+sphinx-rtd-theme>=0.5
+
+# Development utilities
+tox>=3.0
+twine>=3.0
+build>=0.7.0

@@ -281,7 +281,7 @@ This directory contains context files for Grok CLI to understand your project be
 
 ## Purpose
 - **README.md** (this file): Describes your project context and goals
-- **\*.mdc files**: Markdown context files with specific instructions, coding standards, or project knowledge
+- ***.mdc files**: Markdown context files with specific instructions, coding standards, or project knowledge
 
 ## How it works
 When you run `grok-cli --src /path/to/your/project`, Grok CLI will:
