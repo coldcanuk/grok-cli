@@ -396,6 +396,9 @@ class GroKitGridIntegration:
                             cost=self.cost_display,
                             tokens=self.tokens_display
                         )
+                
+                # CRITICAL FIX: Re-render the screen to show the updated costs
+                self.renderer.render_full_screen()
                         
             except Exception as e:
                 print(f"Warning: Could not update cost display: {e}")
@@ -531,9 +534,10 @@ class GroKitGridIntegration:
             if not api_key:
                 return "Error: No XAI_API_KEY found. Please set your API key in environment variables."
             
-            # Create messages for the conversation
+            # Create messages for the conversation with enhanced system prompt
+            system_prompt = self.engine.get_enhanced_system_prompt()
             messages = [
-                {"role": "system", "content": "You are Grok, a helpful AI assistant built by xAI. Be concise but thorough in your responses."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}
             ]
             

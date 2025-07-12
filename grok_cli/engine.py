@@ -56,6 +56,17 @@ IMPORTANT INSTRUCTIONS:
 - Always investigate before responding with generic advice
 - Use batch_read_files for efficiency when examining multiple related files
 
+🗂️ PROJECT STRUCTURE GUIDE:
+This is the grok-cli project. Key files are located in:
+- Main package: grok_cli/ directory contains all Python modules
+- Grid UI system: grok_cli/grokit.py (main Grid UI integration)
+- Grid renderer: grok_cli/grid_ui.py (terminal grid rendering)
+- Cost tracking: grok_cli/tokenCount.py (cost and token management)
+- CLI interface: grok_cli/cli.py (command line interface)
+- AI engine: grok_cli/engine.py (core AI functionality)
+- When investigating UI issues, ALWAYS check grok_cli/grokit.py and grok_cli/grid_ui.py
+- When investigating cost/token issues, check grok_cli/tokenCount.py and grid UI integration
+
 Tool Usage:
 - Each tool call should contain exactly one operation
 - File operations are cached to avoid redundant reads
