@@ -1,6 +1,7 @@
 # The assistants and their folders
 .grok/
 .claude/
+CLAUDE.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
