@@ -83,25 +83,14 @@ class LeaderFollowerOrchestrator:
     
     def _call_leader_model(self, args, key: str, brave_key: str, messages: List[Dict]) -> str:
         """Call the leader model and capture response."""
-        import requests
-        
-        headers = {
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "messages": messages,
-            "model": "grok-3-mini",
-            "stream": False,
-            "temperature": 0.1  # Lower temperature for more focused planning
-        }
-        
         try:
-            response = requests.post("https://api.x.ai/v1/chat/completions", 
-                                   headers=headers, json=data)
-            response.raise_for_status()
+            # Use engine's api_call method for cost tracking
+            response = self.engine.api_call(key, messages, "grok-3-mini", False)
             result = response.json()
+            
+            # Track the response for cost calculation
+            self.engine.track_api_response(result, "grok-3-mini", "leader_planning")
+            
             return result['choices'][0]['message']['content']
         except Exception as e:
             print(f"Error calling leader model: {e}")

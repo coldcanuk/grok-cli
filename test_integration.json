@@ -1,0 +1,50 @@
+{
+  "total_input_cost": 0.0005,
+  "total_output_cost": 0.006,
+  "total_cached_cost": 0.0,
+  "total_search_cost": 0.0,
+  "total_cost": 0.006500000000000001,
+  "total_input_tokens": 100,
+  "total_output_tokens": 400,
+  "total_cached_tokens": 0,
+  "total_searches": 0,
+  "start_time": "2025-07-12T08:52:05.129208+00:00",
+  "operations": [
+    {
+      "input_tokens": 25,
+      "output_tokens": 100,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-beta",
+      "timestamp": "2025-07-12T08:52:05.243979+00:00",
+      "operation_type": "test"
+    },
+    {
+      "input_tokens": 25,
+      "output_tokens": 100,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-beta",
+      "timestamp": "2025-07-12T08:52:28.265840+00:00",
+      "operation_type": "test"
+    },
+    {
+      "input_tokens": 25,
+      "output_tokens": 100,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-beta",
+      "timestamp": "2025-07-12T08:52:41.451779+00:00",
+      "operation_type": "test"
+    },
+    {
+      "input_tokens": 25,
+      "output_tokens": 100,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-beta",
+      "timestamp": "2025-07-12T08:52:54.173802+00:00",
+      "operation_type": "test"
+    }
+  ]
+}

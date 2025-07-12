@@ -16,6 +16,10 @@ def single_prompt(args, engine: GrokEngine):
     """Handle single prompt mode."""
     engine.display_startup_message()
     
+    # Enable cost tracking if requested
+    if args.cost:
+        engine.enable_cost_tracking()
+    
     key, brave_key = get_api_key(args)
     content = build_vision_content(args.prompt, args.image)
     
@@ -25,15 +29,25 @@ def single_prompt(args, engine: GrokEngine):
     ]
     
     engine.run_chat_loop(args, key, brave_key, messages)
+    
+    # Display session summary if cost tracking enabled
+    if args.cost:
+        engine.display_session_summary()
 
 def interactive_chat(args, engine: GrokEngine):
     """Handle interactive chat mode."""
     print(f"\n{get_random_message('startup')}\n")
     
+    # Enable cost tracking if requested
+    if args.cost:
+        engine.enable_cost_tracking()
+    
     key, brave_key = get_api_key(args)
     
     history = [{"role": "system", "content": engine.get_enhanced_system_prompt()}]
     print("Interactive chat started. Type /quit to exit, /clear to reset history, /save <file> to save.")
+    if args.cost:
+        print("Cost tracking enabled. Type /costs to see session summary.")
     print(f"Available tools: {[tool['function']['name'] for tool in engine.tools]}")
     
     while True:
@@ -47,6 +61,12 @@ def interactive_chat(args, engine: GrokEngine):
         elif user_input == "/clear":
             history = [{"role": "system", "content": engine.get_enhanced_system_prompt()}]
             print("History cleared.")
+            continue
+        elif user_input == "/costs":
+            if args.cost:
+                engine.display_session_summary()
+            else:
+                print("Cost tracking is not enabled. Use --cost flag to enable.")
             continue
         elif user_input.startswith("/save "):
             filename = user_input.split(" ", 1)[1]
@@ -62,12 +82,22 @@ def interactive_chat(args, engine: GrokEngine):
         history.append({"role": "user", "content": content})
         
         engine.run_chat_loop(args, key, brave_key, history)
+    
+    # Display final session summary if cost tracking enabled
+    if args.cost:
+        print("\nFinal Session Summary:")
+        engine.display_session_summary()
 
 def leader_mode(args, engine: GrokEngine):
     """Handle leader-follower mode with strategic planning."""
     print(f"\n🎯 Leader Mode Activated: Strategic Planning & Execution")
     print("Leader (grok-3-mini) will create a strategic plan")
     print("Follower (grok-4-0709) will execute the plan\n")
+    
+    # Enable cost tracking if requested
+    if args.cost:
+        engine.enable_cost_tracking()
+        print("Cost tracking enabled for leader-follower workflow.\n")
     
     if not args.prompt:
         objective = input("Enter your objective: ").strip()
@@ -79,6 +109,11 @@ def leader_mode(args, engine: GrokEngine):
     
     orchestrator = LeaderFollowerOrchestrator(engine, args.src)
     orchestrator.execute_leader_follower_workflow(objective, args)
+    
+    # Display session summary if cost tracking enabled
+    if args.cost:
+        print("\nLeader-Follower Session Summary:")
+        engine.display_session_summary()
 
 def test_mode():
     """Run simple self-tests."""
@@ -111,6 +146,7 @@ def main():
     parser.add_argument("--src", required=True, help="Source directory to operate from (REQUIRED). Grok CLI will work within this directory boundary and load context from .grok/ subdirectory.")
     parser.add_argument("--test", action="store_true", help="Run self-tests.")
     parser.add_argument("--lead", action="store_true", help="Enable leader mode: grok-3-mini creates strategic plan for grok-4-0709 to execute.")
+    parser.add_argument("--cost", action="store_true", help="Enable cost tracking: display token usage and USD costs for API calls.")
     
     args = parser.parse_args()
 

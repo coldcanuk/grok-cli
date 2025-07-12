@@ -242,6 +242,10 @@ grok-cli --src /path/to/project --chat
 grok-cli --src /path/to/project --lead --prompt "Implement user authentication system"
 grok-cli --src /path/to/project --lead  # Interactive objective input
 
+# Cost tracking mode 💰
+grok-cli --src /path/to/project --cost --prompt "Your question here"
+grok-cli --src /path/to/project --cost --chat  # Interactive chat with cost tracking
+
 # With image analysis
 grok-cli --src /path/to/project --prompt "What's in this image?" --image path/to/image.jpg
 
@@ -261,6 +265,7 @@ Once in chat mode (`grok-cli --src /path/to/project --chat`):
 - `/quit` - Exit the chat
 - `/clear` - Clear conversation history  
 - `/save <filename>` - Save conversation to JSON file
+- `/costs` - Show session cost summary (when --cost flag is used)
 
 ### 🎯 Leader-Follower Mode (`--lead`)
 
@@ -334,6 +339,74 @@ The leader creates `tempWork/followMe.md` containing:
 - 🚀 **Feature Implementation**: New functionality requiring multiple phases
 - 🔧 **Architecture Changes**: System-wide modifications with careful planning
 - 📊 **Performance Optimization**: Systematic approach to bottleneck resolution
+
+### 💰 Cost Tracking Mode (`--cost`)
+
+Real-time token usage and cost monitoring for transparent billing:
+
+#### How It Works
+
+**Token Counting**: Uses OpenAI-compatible tiktoken tokenizer for accurate counting
+- Handles text prompts, system messages, tool calls, and vision content
+- Real-time estimation before API calls with cost warnings
+- Actual token tracking from API responses
+
+**Cost Calculation**: Accurate USD pricing for all Grok models
+- **grok-beta**: $5 input, $15 output per 1M tokens
+- **grok-4**: $3 input, $15 output, $0.75 cached per 1M tokens  
+- **grok-3-mini**: $1 input, $3 output per 1M tokens
+- **Live Search**: $25 per 1K searches
+
+#### Usage Examples
+
+```bash
+# Single prompt with cost tracking
+grok-cli --src . --cost --prompt "Explain quantum computing"
+
+# Interactive chat with cost monitoring
+grok-cli --src . --cost --chat
+
+# Leader-follower mode with cost analysis
+grok-cli --src . --cost --lead --prompt "Build a REST API"
+
+# Combine with streaming and other features
+grok-cli --src . --cost --stream --prompt "Write a Python script"
+```
+
+#### Cost Tracking Features
+
+**Pre-Call Estimation**:
+- Token count estimation before API calls
+- Cost warnings for expensive operations (>$1.00)
+- Model-specific pricing calculations
+
+**Real-Time Monitoring**:
+- Actual token usage from API responses
+- Cost breakdown by input/output/cached tokens
+- Session accumulation across multiple calls
+
+**Session Management**:
+- Persistent cost tracking across CLI sessions
+- Cost history saved to `grok_session_costs.json`
+- Session summaries with duration and total costs
+
+**Interactive Commands** (in `--chat` mode):
+- `/costs` - Display current session cost summary
+- Automatic cost display at session end
+
+#### Cost Efficiency Tips
+
+```bash
+# Use grok-3-mini for simple tasks (cheaper)
+grok-cli --src . --cost --model grok-3-mini --prompt "Simple question"
+
+# Leader-follower for complex tasks (cost-optimized planning)
+grok-cli --src . --cost --lead --prompt "Complex development task"
+
+# Monitor costs in long interactive sessions
+grok-cli --src . --cost --chat
+# Use /costs regularly to check spending
+```
 
 ### Advanced Usage
 

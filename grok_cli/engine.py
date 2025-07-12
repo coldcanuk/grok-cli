@@ -14,6 +14,7 @@ import requests
 
 from .request_manager import RequestManager, RequestPriority
 from .utils import get_random_message, load_grok_context, create_grok_directory_template
+from .tokenCount import TokenCounter
 
 API_URL = "https://api.x.ai/v1/chat/completions"
 DEFAULT_MODEL = "grok-4"
@@ -37,6 +38,8 @@ class GrokEngine:
         self.last_request_time = 0
         self.source_directory = None
         self.project_context = ""
+        self.token_counter = None
+        self.cost_tracking_enabled = False
         
     def load_config(self) -> Dict[str, Any]:
         """Load configuration from settings.json."""
@@ -76,6 +79,50 @@ class GrokEngine:
             return f"{base_prompt}\n\nIMPORTANT: You are working within the source directory: {self.source_directory}\nAll file operations should be relative to this directory boundary."
         
         return base_prompt
+    
+    def enable_cost_tracking(self, session_file: Optional[str] = None):
+        """Enable cost tracking with TokenCounter."""
+        if not session_file and self.source_directory:
+            session_file = os.path.join(self.source_directory, "grok_session_costs.json")
+        
+        self.token_counter = TokenCounter(session_file)
+        self.cost_tracking_enabled = True
+        print("Cost tracking enabled. Session costs will be displayed.")
+    
+    def track_api_response(self, response_data: Dict[str, Any], model: str, operation_type: str = "chat"):
+        """Track API response for cost calculation."""
+        if not self.cost_tracking_enabled or not self.token_counter:
+            return
+        
+        usage = response_data.get("usage", {})
+        if usage:
+            input_tokens = usage.get("prompt_tokens", 0)
+            output_tokens = usage.get("completion_tokens", 0)
+            
+            # Grok API might provide cached tokens info
+            cached_tokens = usage.get("cached_tokens", 0)
+            
+            self.token_counter.track_api_call(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                model=model,
+                cached_tokens=cached_tokens,
+                operation_type=operation_type
+            )
+            
+            # Display cost info
+            from .tokenCount import GrokPricing
+            pricing = GrokPricing.get_model_pricing(model)
+            input_cost = GrokPricing.calculate_token_cost(input_tokens, pricing["input"])
+            output_cost = GrokPricing.calculate_token_cost(output_tokens, pricing["output"])
+            total_cost = input_cost + output_cost
+            
+            print(f"Actual cost: ${total_cost:.4f} ({input_tokens} -> {output_tokens} tokens)")
+    
+    def display_session_summary(self):
+        """Display session cost summary if cost tracking is enabled."""
+        if self.cost_tracking_enabled and self.token_counter:
+            self.token_counter.display_session_costs()
     
     def build_tool_definitions(self) -> List[Dict[str, Any]]:
         """Build tool definitions for enabled MCP servers."""
@@ -386,6 +433,27 @@ class GrokEngine:
                  stream: bool, tools: Optional[List[Dict[str, Any]]] = None, 
                  retry_count: int = 0) -> requests.Response:
         """Make an API call with advanced rate limiting."""
+        
+        # Cost estimation before API call
+        if self.cost_tracking_enabled and self.token_counter:
+            input_tokens = self.token_counter.count_messages_tokens(messages, model)
+            estimate = self.token_counter.estimate_cost(
+                input_text="", # We already have token count
+                expected_output_tokens=500,  # Reasonable default
+                model=model
+            )
+            # Override with actual input tokens
+            from .tokenCount import GrokPricing
+            estimate["input_tokens"] = input_tokens
+            estimate["total_estimated_cost"] = (
+                GrokPricing.calculate_token_cost(input_tokens, 
+                    GrokPricing.get_model_pricing(model)["input"]) +
+                estimate["output_cost"]
+            )
+            
+            print(f"Estimated cost: ${estimate['total_estimated_cost']:.4f} ({input_tokens} input tokens)")
+            self.token_counter.display_cost_warning(estimate["total_estimated_cost"])
+        
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         data = {"messages": messages, "model": model, "stream": stream}
         
@@ -465,6 +533,27 @@ class GrokEngine:
             if args.stream:
                 assistant_content, tool_calls = self.handle_stream_with_tools(response, brave_key, debug_mode=args.debug)
                 
+                # For streaming, estimate token usage since it's not provided in the stream
+                if self.cost_tracking_enabled and self.token_counter and assistant_content:
+                    input_tokens = self.token_counter.count_messages_tokens(messages, args.model)
+                    output_tokens = self.token_counter.count_tokens(assistant_content)
+                    
+                    self.token_counter.track_api_call(
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        model=args.model,
+                        operation_type="chat_stream"
+                    )
+                    
+                    # Display estimated cost info
+                    from .tokenCount import GrokPricing
+                    pricing = GrokPricing.get_model_pricing(args.model)
+                    input_cost = GrokPricing.calculate_token_cost(input_tokens, pricing["input"])
+                    output_cost = GrokPricing.calculate_token_cost(output_tokens, pricing["output"])
+                    total_cost = input_cost + output_cost
+                    
+                    print(f"Estimated cost: ${total_cost:.4f} ({input_tokens} -> {output_tokens} tokens)")
+                
                 if not tool_calls:
                     if iteration == 1 and assistant_content:
                         pass  # Normal response, no tools needed
@@ -523,6 +612,9 @@ class GrokEngine:
                 # Non-streaming mode
                 response_json = response.json()
                 message = response_json["choices"][0]["message"]
+                
+                # Track API response for cost calculation
+                self.track_api_response(response_json, args.model, "chat")
                 
                 if "tool_calls" not in message:
                     if "content" in message and message["content"]:

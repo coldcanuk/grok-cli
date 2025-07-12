@@ -1,0 +1,32 @@
+{
+  "total_input_cost": 0.00065,
+  "total_output_cost": 0.0045000000000000005,
+  "total_cached_cost": 1.8750000000000002e-05,
+  "total_search_cost": 0.05,
+  "total_cost": 0.05516875,
+  "total_input_tokens": 150,
+  "total_output_tokens": 300,
+  "total_cached_tokens": 25,
+  "total_searches": 2,
+  "start_time": "2025-07-12T08:45:58.794127+00:00",
+  "operations": [
+    {
+      "input_tokens": 100,
+      "output_tokens": 200,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-beta",
+      "timestamp": "2025-07-12T08:45:58.794159+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 50,
+      "output_tokens": 100,
+      "cached_input_tokens": 25,
+      "live_searches": 2,
+      "model": "grok-4",
+      "timestamp": "2025-07-12T08:45:58.794932+00:00",
+      "operation_type": "chat"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "total_input_cost": 0.00285,
+  "total_output_cost": 0.0315,
+  "total_cached_cost": 0.000125,
+  "total_search_cost": 0.05,
+  "total_cost": 0.084475,
+  "total_input_tokens": 850,
+  "total_output_tokens": 2100,
+  "total_cached_tokens": 25,
+  "total_searches": 2,
+  "start_time": "2025-07-12T08:46:45.389471+00:00",
+  "operations": [
+    {
+      "input_tokens": 50,
+      "output_tokens": 100,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-beta",
+      "timestamp": "2025-07-12T08:46:45.389485+00:00",
+      "operation_type": "simple_question"
+    },
+    {
+      "input_tokens": 200,
+      "output_tokens": 500,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4",
+      "timestamp": "2025-07-12T08:46:45.390213+00:00",
+      "operation_type": "code_generation"
+    },
+    {
+      "input_tokens": 100,
+      "output_tokens": 300,
+      "cached_input_tokens": 25,
+      "live_searches": 0,
+      "model": "grok-beta",
+      "timestamp": "2025-07-12T08:46:45.390735+00:00",
+      "operation_type": "follow_up"
+    },
+    {
+      "input_tokens": 500,
+      "output_tokens": 1200,
+      "cached_input_tokens": 0,
+      "live_searches": 2,
+      "model": "grok-4",
+      "timestamp": "2025-07-12T08:46:45.391613+00:00",
+      "operation_type": "research_task"
+    }
+  ]
+}

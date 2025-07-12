@@ -1,0 +1,23 @@
+{
+  "total_input_cost": 7.999999999999999e-05,
+  "total_output_cost": 0.001275,
+  "total_cached_cost": 0.0,
+  "total_search_cost": 0.0,
+  "total_cost": 0.001355,
+  "total_input_tokens": 16,
+  "total_output_tokens": 85,
+  "total_cached_tokens": 0,
+  "total_searches": 0,
+  "start_time": "2025-07-12T08:45:07.715509+00:00",
+  "operations": [
+    {
+      "input_tokens": 16,
+      "output_tokens": 85,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-beta",
+      "timestamp": "2025-07-12T08:45:07.843002+00:00",
+      "operation_type": "test"
+    }
+  ]
+}
