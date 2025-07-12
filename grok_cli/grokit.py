@@ -15,7 +15,7 @@ from .engine import GrokEngine
 from .leader import LeaderFollowerOrchestrator
 from .input_handler import MultiLineInputHandler, GroKitInterface
 from .grid_ui import GridRenderer, VersionManager
-from .persistence import PersistentStorage, ConversationStorage, CostTracker
+from .persistence import PersistentStorage
 from .enhanced_input import EnhancedInputHandler
 
 
@@ -78,20 +78,22 @@ class GroKitUI(GroKitInterface):
         self.print_styled("\nSelect an option:", "blue")
         try:
             self.print_styled("1. 💬 Interactive Chat (Grid UI)", "green")
-            self.print_styled("2. 🎯 Leader Mode (Strategic Planning)", "green")
-            self.print_styled("3. 📋 Single Prompt", "green")
-            self.print_styled("4. ⚙️  Settings", "green")
-            self.print_styled("5. 📊 Cost Analysis", "green")
-            self.print_styled("6. ❓ Help", "green")
-            self.print_styled("7. 🚪 Exit", "green")
+            self.print_styled("2. 🔄 Resume Previous Session", "green")
+            self.print_styled("3. 🎯 Leader Mode (Strategic Planning)", "green")
+            self.print_styled("4. 📋 Single Prompt", "green")
+            self.print_styled("5. ⚙️  Settings", "green")
+            self.print_styled("6. 📊 Cost Analysis", "green")
+            self.print_styled("7. ❓ Help", "green")
+            self.print_styled("8. 🚪 Exit", "green")
         except UnicodeEncodeError:
             self.print_styled("1. Interactive Chat (Grid UI)", "green")
-            self.print_styled("2. Leader Mode (Strategic Planning)", "green")
-            self.print_styled("3. Single Prompt", "green")
-            self.print_styled("4. Settings", "green")
-            self.print_styled("5. Cost Analysis", "green")
-            self.print_styled("6. Help", "green")
-            self.print_styled("7. Exit", "green")
+            self.print_styled("2. Resume Previous Session", "green")
+            self.print_styled("3. Leader Mode (Strategic Planning)", "green")
+            self.print_styled("4. Single Prompt", "green")
+            self.print_styled("5. Settings", "green")
+            self.print_styled("6. Cost Analysis", "green")
+            self.print_styled("7. Help", "green")
+            self.print_styled("8. Exit", "green")
         
         self.print_cost_summary(compact=True)
         self.print_styled(f"\nWorking Directory: {self.src_path}", "yellow")
@@ -100,13 +102,13 @@ class GroKitUI(GroKitInterface):
         """Get user menu selection."""
         while True:
             try:
-                choice = input(f"\n{self.colors['bold']}Enter choice (1-7): {self.colors['end']}").strip()
-                if choice in ['1', '2', '3', '4', '5', '6', '7']:
+                choice = input(f"\n{self.colors['bold']}Enter choice (1-8): {self.colors['end']}").strip()
+                if choice in ['1', '2', '3', '4', '5', '6', '7', '8']:
                     return choice
                 else:
-                    print(f"{self.colors['red']}Invalid choice. Please enter 1-7.{self.colors['end']}")
+                    print(f"{self.colors['red']}Invalid choice. Please enter 1-8.{self.colors['end']}")
             except KeyboardInterrupt:
-                return '7'  # Exit on Ctrl+C
+                return '8'  # Exit on Ctrl+C
     
     def run_grok_cli_command(self, args: List[str]) -> Tuple[bool, str]:
         """Execute grok-cli command and return success status and output."""
@@ -263,6 +265,90 @@ class GroKitUI(GroKitInterface):
             self.print_styled("Falling back to standard interface...", "yellow")
             self.wait_for_key()
     
+    def resume_previous_session(self):
+        """Display session browser and allow user to select a previous session."""
+        self.clear_screen()
+        self.print_header()
+        print(f"{self.colors['cyan']}🔄 Resume Previous Session{self.colors['end']}")
+        
+        # Get available sessions
+        from .persistence import PersistentStorage
+        sessions = PersistentStorage.get_available_sessions(self.src_path)
+        
+        if not sessions:
+            print(f"\n{self.colors['yellow']}No previous sessions found.{self.colors['end']}")
+            print("Start a new interactive chat session to create your first session.")
+            self.wait_for_key()
+            return
+        
+        # Display sessions
+        print(f"\n{self.colors['green']}Available Sessions:{self.colors['end']}")
+        print("=" * 70)
+        
+        for i, session in enumerate(sessions, 1):
+            # Parse start time for display
+            start_time = session.get("start_time", "")
+            if start_time:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    display_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    display_time = start_time
+            else:
+                display_time = "Unknown"
+            
+            # Display session info
+            print(f"\n{self.colors['bold']}{i}. Session: {session.get('session_id', 'unknown')}{self.colors['end']}")
+            print(f"   Started: {display_time}")
+            print(f"   Messages: {session.get('message_count', 0)}")
+            print(f"   Cost: ${session.get('total_cost', 0.0):.4f} | Tokens: {session.get('total_tokens', 0):,}")
+            print(f"   Preview: {session.get('preview', 'No preview available')}")
+        
+        print("=" * 70)
+        print(f"{self.colors['blue']}0. Return to main menu{self.colors['end']}")
+        
+        # Get user choice
+        while True:
+            try:
+                choice = input(f"\n{self.colors['bold']}Select session (0-{len(sessions)}): {self.colors['end']}").strip()
+                
+                if choice == '0':
+                    return
+                
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(sessions):
+                    selected_session = sessions[choice_num - 1]
+                    self._launch_grid_ui_with_session(selected_session)
+                    return
+                else:
+                    print(f"{self.colors['red']}Invalid choice. Please enter 0-{len(sessions)}.{self.colors['end']}")
+                    
+            except ValueError:
+                print(f"{self.colors['red']}Invalid input. Please enter a number.{self.colors['end']}")
+            except KeyboardInterrupt:
+                return
+    
+    def _launch_grid_ui_with_session(self, session_info: Dict):
+        """Launch Grid UI with a pre-loaded session."""
+        self.clear_screen()
+        self.print_styled("🖥️  Loading session into Grid UI...", "cyan")
+        print(f"\nLoading session: {session_info.get('session_id', 'unknown')}")
+        print(f"Messages: {session_info.get('message_count', 0)}")
+        print(f"Original start time: {session_info.get('start_time', 'unknown')}")
+        
+        try:
+            # Load the full session data
+            session_data = PersistentStorage.load_session_data(session_info["file_path"])
+            
+            # Launch grid UI with pre-loaded session
+            grid_ui = GroKitGridIntegration(self.src_path, loaded_session=session_data)
+            grid_ui.run()
+        except Exception as e:
+            self.print_styled(f"\nError loading session: {e}", "red")
+            print("Falling back to standard interface...")
+            self.wait_for_key()
+    
     def run(self):
         """Main run loop for GroKit."""
         try:
@@ -276,19 +362,21 @@ class GroKitUI(GroKitInterface):
                 if choice == '1':
                     self.launch_grid_ui()  # Use grid UI for interactive chat
                 elif choice == '2':
+                    self.resume_previous_session()  # New session browser
+                elif choice == '3':
                     objective = input("\nEnter objective for leader mode: ").strip()
                     if objective:
                         self.execute_leader_mode(objective)
                         self.wait_for_key()
-                elif choice == '3':
-                    self.single_prompt_mode()
                 elif choice == '4':
-                    self.show_settings()
+                    self.single_prompt_mode()
                 elif choice == '5':
-                    self.show_cost_analysis()
+                    self.show_settings()
                 elif choice == '6':
-                    self.show_help()
+                    self.show_cost_analysis()
                 elif choice == '7':
+                    self.show_help()
+                elif choice == '8':
                     break
         
         except KeyboardInterrupt:
@@ -302,15 +390,15 @@ class GroKitUI(GroKitInterface):
 class GroKitGridIntegration:
     """Integration class for the grid UI within GroKit."""
     
-    def __init__(self, src_path: str = "."):
+    def __init__(self, src_path: str = ".", loaded_session: Dict = None):
         """Initialize the Grid UI integration."""
         self.src_path = src_path
         self.running = True
+        self.loaded_session = loaded_session
         
         # Initialize components
         self.renderer = GridRenderer()
-        self.storage = ConversationStorage()
-        self.cost_tracker = CostTracker()
+        self.storage = PersistentStorage(self.src_path)
         
         # Initialize enhanced input with callback for real-time updates
         self.enhanced_input = EnhancedInputHandler(
@@ -335,8 +423,11 @@ class GroKitGridIntegration:
         self._setup_ui()
         self._enable_cost_tracking()
         
-        # Load conversation history
-        self._load_conversation_history()
+        # Load conversation history (either from loaded session or recent history)
+        if self.loaded_session:
+            self._load_session_into_grid()
+        else:
+            self._load_conversation_history()
     
     def _setup_ui(self):
         """Initialize the UI with header and initial content."""
@@ -360,6 +451,80 @@ class GroKitGridIntegration:
         
         self.renderer.add_ai_message("system", welcome_msg)
         self._update_status("GroKit Grid initialized")
+    
+    def _load_conversation_history(self):
+        """Load conversation history for new sessions (should start fresh)."""
+        # For new interactive chat sessions, we don't load old history
+        # Only the welcome message should be shown
+        # History loading only happens when resuming a specific session
+        pass
+    
+    def _load_session_into_grid(self):
+        """Load a previous session's data into the grid UI."""
+        try:
+            if not self.loaded_session:
+                return
+            
+            # Update storage to use the loaded session
+            session_id = self.loaded_session.get("session_id", "unknown")
+            messages = self.loaded_session.get("messages", [])
+            cost_tracking = self.loaded_session.get("cost_tracking", {})
+            
+            # Replace welcome message with session info
+            self.renderer.clear_ai_history()
+            
+            try:
+                session_info_msg = (
+                    f"📂 Resumed Session: {session_id}\n"
+                    f"Original start: {self.loaded_session.get('start_time', 'unknown')}\n"
+                    f"Messages loaded: {len(messages)}\n"
+                    f"Session cost: ${cost_tracking.get('total_cost', 0.0):.4f}\n\n"
+                    f"Continuing conversation..."
+                )
+            except UnicodeEncodeError:
+                # ASCII fallback for Windows
+                session_info_msg = (
+                    f"[RESUMED] Session: {session_id}\n"
+                    f"Original start: {self.loaded_session.get('start_time', 'unknown')}\n"
+                    f"Messages loaded: {len(messages)}\n"
+                    f"Session cost: ${cost_tracking.get('total_cost', 0.0):.4f}\n\n"
+                    f"Continuing conversation..."
+                )
+            
+            self.renderer.add_ai_message("system", session_info_msg)
+            
+            # Load all messages from the session
+            for message in messages:
+                role = message.get("role", "unknown")
+                content = message.get("content", "")
+                timestamp = message.get("timestamp", "")
+                
+                # Extract just the time part for display
+                if timestamp:
+                    try:
+                        from datetime import datetime
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        display_time = dt.strftime("%H:%M:%S")
+                    except:
+                        display_time = timestamp
+                else:
+                    display_time = ""
+                
+                self.renderer.add_ai_message(role, content, display_time)
+            
+            # Update cost display with session totals
+            self.cost_display = f"${cost_tracking.get('total_cost', 0.0):.4f}"
+            self.tokens_display = f"{cost_tracking.get('total_tokens', 0):,}"
+            
+            self._update_status(f"Session resumed - {len(messages)} messages loaded")
+            
+            # Update storage session ID to continue this session
+            self.storage.session_id = session_id
+            
+        except Exception as e:
+            print(f"Warning: Could not load session into grid: {e}")
+            # Fall back to regular conversation history loading
+            self._load_conversation_history()
     
     def _enable_cost_tracking(self):
         """Enable cost tracking for the session with unified tracking."""

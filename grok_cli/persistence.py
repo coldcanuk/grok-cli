@@ -303,6 +303,74 @@ class PersistentStorage:
             "features_used": len(session_data["metadata"].get("features_used", [])),
             "cost_summary": self.get_cost_summary()
         }
+    
+    @classmethod
+    def get_available_sessions(cls, src_path: str) -> List[Dict]:
+        """Get list of available previous sessions."""
+        src_path = Path(src_path).resolve()
+        session_dir = src_path / ".grok" / "session"
+        
+        if not session_dir.exists():
+            return []
+        
+        sessions = []
+        for session_file in session_dir.glob("session_*.json"):
+            try:
+                with open(session_file, 'r', encoding='utf-8') as f:
+                    session_data = json.load(f)
+                
+                # Extract session info
+                session_info = {
+                    "file_path": str(session_file),
+                    "session_id": session_data.get("session_id", "unknown"),
+                    "start_time": session_data.get("start_time", ""),
+                    "messages": session_data.get("messages", []),
+                    "cost_tracking": session_data.get("cost_tracking", {}),
+                    "metadata": session_data.get("metadata", {})
+                }
+                
+                # Add computed fields
+                messages = session_info["messages"]
+                if messages:
+                    session_info["message_count"] = len(messages)
+                    session_info["last_message_time"] = messages[-1].get("timestamp", "")
+                    
+                    # Extract first user message as preview
+                    user_messages = [m for m in messages if m.get("role") == "user"]
+                    if user_messages:
+                        first_msg = user_messages[0].get("content", "")
+                        session_info["preview"] = first_msg[:100] + "..." if len(first_msg) > 100 else first_msg
+                    else:
+                        session_info["preview"] = "No user messages"
+                else:
+                    session_info["message_count"] = 0
+                    session_info["last_message_time"] = ""
+                    session_info["preview"] = "Empty session"
+                
+                # Add cost info
+                cost_data = session_info["cost_tracking"]
+                session_info["total_cost"] = cost_data.get("total_cost", 0.0)
+                session_info["total_tokens"] = cost_data.get("total_tokens", 0)
+                
+                sessions.append(session_info)
+                
+            except Exception as e:
+                # Skip corrupted session files
+                print(f"Warning: Could not read session file {session_file}: {e}")
+                continue
+        
+        # Sort by start time (newest first)
+        sessions.sort(key=lambda x: x.get("start_time", ""), reverse=True)
+        return sessions
+    
+    @classmethod
+    def load_session_data(cls, session_file_path: str) -> Dict:
+        """Load a specific session's data."""
+        try:
+            with open(session_file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            raise Exception(f"Could not load session from {session_file_path}: {e}")
 
 
 class ClipboardHandler:

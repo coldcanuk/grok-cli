@@ -237,12 +237,14 @@ class GridRenderer:
         input_y = self.height - self.input_height - self.status_height
         self.draw_box(1, input_y, self.width - 2, self.input_height, title="USER INPUT", color="green")
         
-        # Clear the input line first
+        # Clear the entire input line first (important for proper clearing)
         self.move_cursor(input_y + 1, 3)
         print(" " * (self.width - 6), end="")
         
-        # Input text content
+        # Move cursor back to start of input area
         self.move_cursor(input_y + 1, 3)
+        
+        # Get input text and cursor position
         input_text = self.input_content.get('text', '')
         cursor_pos = self.input_content.get('cursor_pos', 0)
         
@@ -263,14 +265,24 @@ class GridRenderer:
             display_text = input_text
             display_cursor_pos = cursor_pos
         
-        # Print the text
-        print(f"{self.colors['end']}{display_text}{self.colors['end']}", end="")
+        # Print the text with proper color reset
+        if display_text:
+            print(f"{self.colors['end']}{display_text}{self.colors['end']}", end="")
         
         # Show cursor at correct position
         if display_cursor_pos <= len(display_text):
             cursor_x = 3 + display_cursor_pos
             self.move_cursor(input_y + 1, cursor_x)
-            print(f"{self.colors['bg_green']} {self.colors['end']}", end="")
+            # Use a visible cursor character
+            if display_cursor_pos < len(display_text):
+                # Cursor in middle of text - highlight the character
+                print(f"{self.colors['bg_green']}{display_text[display_cursor_pos]}{self.colors['end']}", end="")
+            else:
+                # Cursor at end - show block cursor
+                print(f"{self.colors['bg_green']} {self.colors['end']}", end="")
+        
+        # Ensure cursor stays in input area
+        self.move_cursor(input_y + 1, 3 + display_cursor_pos)
     
     def render_status_bar(self):
         """Render the status bar at bottom."""
@@ -297,7 +309,8 @@ class GridRenderer:
         self.input_content['cursor_pos'] = cursor_pos
         self.render_input_area()
         
-        # Keep cursor in input area
+        # Force flush to ensure immediate display update
+        sys.stdout.flush()
         input_y = self.height - self.input_height - self.status_height
         display_width = self.width - 6
         

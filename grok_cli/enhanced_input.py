@@ -167,10 +167,20 @@ class EnhancedInputHandler:
         
         # Terminal input handler for real-time capture
         self.terminal_input = None
+        self._init_terminal_input()
     
     def _default_status_update(self, message: str):
         """Default status update handler."""
         pass
+    
+    def _init_terminal_input(self):
+        """Initialize terminal input handler with proper error handling."""
+        try:
+            from .terminal_input import TerminalInputHandler
+            self.terminal_input = TerminalInputHandler(on_char_update=self._handle_char_update)
+        except Exception as e:
+            print(f"Warning: Could not initialize terminal input handler: {e}")
+            self.terminal_input = None
     
     def get_input(self, prompt: str = "You: ") -> Tuple[str, Dict]:
         """Get user input with enhanced features. Returns (text, metadata)."""
@@ -188,17 +198,23 @@ class EnhancedInputHandler:
         """Get single line input with special command handling."""
         while True:
             try:
-                self.on_status_update("Single-line mode | /paste /multi /help")
+                # Clear the input field before starting
+                if self.on_char_update:
+                    self.on_char_update("", 0)
                 
-                # Initialize terminal input handler if needed
-                if not self.terminal_input:
-                    self.terminal_input = TerminalInputHandler(on_char_update=self._handle_char_update)
+                # Try to use terminal input for real-time updates
+                use_terminal_input = True
+                user_input = ""
                 
                 try:
-                    user_input = self.terminal_input.get_line(multiline=False).strip()
-                except AttributeError:
-                    # Fallback to standard input if terminal handler fails
-                    user_input = input(prompt).strip()
+                    if self.terminal_input and hasattr(self.terminal_input, 'platform_supported') and self.terminal_input.platform_supported:
+                        user_input = self.terminal_input.get_line(multiline=False).strip()
+                    else:
+                        raise Exception("Terminal input not available")
+                except Exception:
+                    # Terminal input failed, use standard input with simulated real-time updates
+                    use_terminal_input = False
+                    user_input = self._get_input_with_updates(prompt)
                 
                 # Handle special commands
                 if user_input in self.special_commands:
@@ -207,10 +223,16 @@ class EnhancedInputHandler:
                         continue
                     else:
                         # Get another input after command
-                        try:
-                            user_input = self.terminal_input.get_line(multiline=False).strip()
-                        except AttributeError:
+                        if use_terminal_input and self.terminal_input:
+                            try:
+                                user_input = self.terminal_input.get_line(multiline=False).strip()
+                            except Exception:
+                                user_input = input(prompt).strip()
+                        else:
                             user_input = input(prompt).strip()
+                            # Clear input field after processing
+                            if self.on_char_update:
+                                self.on_char_update("", 0)
                 
                 # Handle commands with arguments
                 if user_input.startswith("/"):
@@ -234,6 +256,10 @@ class EnhancedInputHandler:
                         "optimization": optimization_metadata,
                         "timestamp": time.time()
                     }
+                    
+                    # Clear the input field after processing
+                    if self.on_char_update:
+                        self.on_char_update("", 0)
                     
                     self.on_status_update(f"Input received ({len(optimized_text)} chars)")
                     return optimized_text, metadata
@@ -459,6 +485,130 @@ class EnhancedInputHandler:
             "undo_stack_size": len(self.undo_stack),
             "clipboard_available": self.clipboard.is_available()
         }
+    
+    def _get_input_with_updates(self, prompt: str) -> str:
+        """Get input with simulated real-time updates for fallback mode."""
+        # Detect platform
+        platform_type = self._detect_platform()
+        
+        buffer = ""
+        cursor_pos = 0
+        
+        # Show initial empty state
+        if self.on_char_update:
+            self.on_char_update(buffer, cursor_pos)
+        
+        if platform_type == 'windows':
+            # Windows-specific implementation
+            try:
+                import msvcrt
+                return self._windows_input_loop(buffer, cursor_pos, msvcrt)
+            except ImportError:
+                pass
+        elif platform_type in ['linux', 'wsl']:
+            # Try Unix-style input first
+            try:
+                return self._unix_input_loop(buffer, cursor_pos)
+            except Exception:
+                pass
+        
+        # Fallback to standard input
+        print(f"\n{prompt}", end='', flush=True)
+        buffer = input()
+        if self.on_char_update:
+            self.on_char_update(buffer, len(buffer))
+        return buffer
+    
+    def _detect_platform(self) -> str:
+        """Detect the current platform."""
+        if os.name == 'nt':
+            return 'windows'
+        else:
+            # Check if running in WSL
+            try:
+                with open('/proc/version', 'r') as f:
+                    if 'microsoft' in f.read().lower():
+                        return 'wsl'
+            except:
+                pass
+            return 'linux'
+    
+    def _windows_input_loop(self, buffer: str, cursor_pos: int, msvcrt) -> str:
+        """Windows-specific input loop using msvcrt."""
+        while True:
+            if msvcrt.kbhit():
+                key = msvcrt.getch()
+                
+                if key == b'\r':  # Enter
+                    return buffer
+                elif key == b'\x08':  # Backspace
+                    if cursor_pos > 0:
+                        buffer = buffer[:cursor_pos-1] + buffer[cursor_pos:]
+                        cursor_pos -= 1
+                        if self.on_char_update:
+                            self.on_char_update(buffer, cursor_pos)
+                elif key == b'\xe0':  # Special key prefix
+                    next_key = msvcrt.getch()
+                    if next_key == b'K':  # Left arrow
+                        if cursor_pos > 0:
+                            cursor_pos -= 1
+                            if self.on_char_update:
+                                self.on_char_update(buffer, cursor_pos)
+                    elif next_key == b'M':  # Right arrow
+                        if cursor_pos < len(buffer):
+                            cursor_pos += 1
+                            if self.on_char_update:
+                                self.on_char_update(buffer, cursor_pos)
+                elif 32 <= ord(key) <= 126:  # Printable characters
+                    char = key.decode('utf-8', errors='ignore')
+                    buffer = buffer[:cursor_pos] + char + buffer[cursor_pos:]
+                    cursor_pos += 1
+                    if self.on_char_update:
+                        self.on_char_update(buffer, cursor_pos)
+    
+    def _unix_input_loop(self, buffer: str, cursor_pos: int) -> str:
+        """Unix/Linux/WSL input loop using termios."""
+        import termios
+        import tty
+        import sys
+        
+        old_settings = termios.tcgetattr(sys.stdin)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            
+            while True:
+                key = sys.stdin.read(1)
+                
+                if key == '\r' or key == '\n':  # Enter
+                    return buffer
+                elif key == '\x7f' or key == '\x08':  # Backspace
+                    if cursor_pos > 0:
+                        buffer = buffer[:cursor_pos-1] + buffer[cursor_pos:]
+                        cursor_pos -= 1
+                        if self.on_char_update:
+                            self.on_char_update(buffer, cursor_pos)
+                elif key == '\x1b':  # Escape sequence
+                    next1 = sys.stdin.read(1)
+                    if next1 == '[':
+                        next2 = sys.stdin.read(1)
+                        if next2 == 'D':  # Left arrow
+                            if cursor_pos > 0:
+                                cursor_pos -= 1
+                                if self.on_char_update:
+                                    self.on_char_update(buffer, cursor_pos)
+                        elif next2 == 'C':  # Right arrow
+                            if cursor_pos < len(buffer):
+                                cursor_pos += 1
+                                if self.on_char_update:
+                                    self.on_char_update(buffer, cursor_pos)
+                elif 32 <= ord(key) <= 126:  # Printable characters
+                    buffer = buffer[:cursor_pos] + key + buffer[cursor_pos:]
+                    cursor_pos += 1
+                    if self.on_char_update:
+                        self.on_char_update(buffer, cursor_pos)
+        finally:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+
     
     def cleanup(self):
         """Cleanup resources."""

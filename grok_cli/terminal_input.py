@@ -35,14 +35,42 @@ class TerminalInputHandler:
     
     def _setup_platform_specific(self):
         """Setup platform-specific input handling."""
+        # Detect if running in WSL
+        is_wsl = self._detect_wsl()
+        
         if os.name == 'nt':  # Windows
-            import msvcrt
-            self._getch = msvcrt.getch
-            self._kbhit = msvcrt.kbhit
-        else:  # Unix/Linux/Mac
-            import termios
-            import tty
-            self._setup_unix_terminal()
+            try:
+                import msvcrt
+                self._getch = msvcrt.getch
+                self._kbhit = msvcrt.kbhit
+                self.platform_supported = True
+            except ImportError:
+                print("Warning: msvcrt not available, using fallback input")
+                self.platform_supported = False
+                self._getch = None
+                self._kbhit = None
+        else:  # Unix/Linux/Mac/WSL
+            try:
+                import termios
+                import tty
+                self._setup_unix_terminal()
+                self.platform_supported = True
+                # WSL might have some terminal issues, warn user
+                if is_wsl:
+                    print("Note: Running in WSL - some terminal features may be limited")
+            except ImportError:
+                print("Warning: termios not available, using fallback input")
+                self.platform_supported = False
+                self._getch = None
+                self._kbhit = None
+    
+    def _detect_wsl(self) -> bool:
+        """Detect if running in Windows Subsystem for Linux."""
+        try:
+            with open('/proc/version', 'r') as f:
+                return 'microsoft' in f.read().lower()
+        except:
+            return False
     
     def _setup_unix_terminal(self):
         """Setup Unix terminal for raw input."""
@@ -82,22 +110,54 @@ class TerminalInputHandler:
         self.cursor_pos = 0
         self.history_index = -1
         
-        while True:
-            if os.name == 'nt' and self._kbhit():
-                key = self._getch()
-                result = self._handle_key(key, multiline)
-                if result is not None:
-                    return result
-            elif os.name != 'nt':
-                # Unix doesn't have kbhit, so we just block on getch
-                key = self._getch()
-                result = self._handle_key(key, multiline)
-                if result is not None:
-                    return result
-            
-            # Small delay to prevent CPU spinning on Windows
-            if os.name == 'nt':
-                time.sleep(0.01)
+        # Initial callback to clear the input field
+        self.on_char_update(self.buffer, self.cursor_pos)
+        
+        # Check if platform-specific input is supported
+        if not getattr(self, 'platform_supported', False) or not self._getch:
+            # Platform not supported, use fallback with manual updates
+            result = input("Input: ")
+            self.on_char_update(result, len(result))
+            return result
+        
+        try:
+            while True:
+                if os.name == 'nt':
+                    # Windows: Use blocking getch for better reliability
+                    try:
+                        key = self._getch()
+                        result = self._handle_key(key, multiline)
+                        if result is not None:
+                            return result
+                    except Exception as e:
+                        # If terminal input fails, fall back to standard input
+                        print(f"\nTerminal input error: {e}")
+                        print("Falling back to standard input...")
+                        result = input("Input: ")
+                        self.on_char_update(result, len(result))
+                        return result
+                else:
+                    # Unix: Block on getch
+                    try:
+                        key = self._getch()
+                        result = self._handle_key(key, multiline)
+                        if result is not None:
+                            return result
+                    except Exception as e:
+                        # If terminal input fails, fall back to standard input
+                        print(f"\nTerminal input error: {e}")
+                        print("Falling back to standard input...")
+                        result = input("Input: ")
+                        self.on_char_update(result, len(result))
+                        return result
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            # Any other error, fall back to standard input
+            print(f"\nTerminal handler error: {e}")
+            result = input("Input: ")
+            self.on_char_update(result, len(result))
+            return result
     
     def _handle_key(self, key: bytes, multiline: bool) -> Optional[str]:
         """
@@ -112,7 +172,12 @@ class TerminalInputHandler:
             if key == b'\r':  # Enter
                 if not multiline:
                     self._add_to_history(self.buffer)
-                    return self.buffer
+                    result = self.buffer
+                    # Clear buffer and update display before returning
+                    self.buffer = ""
+                    self.cursor_pos = 0
+                    self.on_char_update(self.buffer, self.cursor_pos)
+                    return result
                 else:
                     # In multiline mode, check for ### terminator
                     if self.buffer.endswith("###"):
@@ -139,7 +204,12 @@ class TerminalInputHandler:
             if key == b'\n' or key == b'\r':  # Enter
                 if not multiline:
                     self._add_to_history(self.buffer)
-                    return self.buffer
+                    result = self.buffer
+                    # Clear buffer and update display before returning
+                    self.buffer = ""
+                    self.cursor_pos = 0
+                    self.on_char_update(self.buffer, self.cursor_pos)
+                    return result
                 else:
                     if self.buffer.endswith("###"):
                         text = self.buffer[:-3].strip()
