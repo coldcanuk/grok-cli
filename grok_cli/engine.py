@@ -25,10 +25,9 @@ from .tokenCount import TokenCounter
 
 # xAI API endpoint - using v1 path (OpenAI compatible)
 API_URL = "https://api.x.ai/v1/chat/completions"
-DEFAULT_MODEL = "grok-4"
+DEFAULT_MODEL = "grok-4-0709"
 REASONING_MODELS = {
-    "grok-4": "grok-4-reasoning",
-    "grok-beta": "grok-beta-reasoning", 
+    "grok-4-0709": "grok-4-0709-reasoning",
     "grok-3-mini": "grok-3-mini-reasoning"
 }
 SYSTEM_PROMPT = """You are Grok, a helpful and truthful AI built by xAI. When asked to create files or perform file operations, use the available tools to complete the task.

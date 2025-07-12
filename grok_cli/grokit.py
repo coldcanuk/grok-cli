@@ -522,7 +522,7 @@ class GroKitGridIntegration:
             try:
                 # Create a simple namespace object for args
                 class Args:
-                    model = "grok-beta"
+                    model = "grok-4-0709"
                     stream = True
                     debug = 0
                 

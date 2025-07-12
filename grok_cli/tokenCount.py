@@ -21,7 +21,7 @@ class TokenUsage:
     output_tokens: int = 0
     cached_input_tokens: int = 0
     live_searches: int = 0
-    model: str = "grok-beta"
+    model: str = "grok-4-0709"
     timestamp: str = ""
     operation_type: str = "chat"  # chat, tool_call, search, etc.
     
@@ -85,7 +85,7 @@ class GrokPricing:
     @classmethod
     def get_model_pricing(cls, model: str) -> Dict[str, float]:
         """Get pricing for a specific model."""
-        return cls.PRICING_MATRIX.get(model, cls.PRICING_MATRIX["grok-beta"])
+        return cls.PRICING_MATRIX.get(model, cls.PRICING_MATRIX["grok-4-0709"])
     
     @classmethod
     def calculate_token_cost(cls, tokens: int, cost_per_million: float) -> float:
@@ -170,7 +170,7 @@ class TokenCounter:
     def track_api_call(self, 
                       input_tokens: int,
                       output_tokens: int,
-                      model: str = "grok-beta",
+                      model: str = "grok-4-0709",
                       cached_tokens: int = 0,
                       live_searches: int = 0,
                       operation_type: str = "chat") -> TokenUsage:
@@ -218,7 +218,7 @@ class TokenCounter:
     def estimate_cost(self, 
                      input_text: str, 
                      expected_output_tokens: int = 500,
-                     model: str = "grok-beta",
+                     model: str = "grok-4-0709",
                      include_searches: int = 0) -> Dict[str, float]:
         """Estimate cost for an operation before making the API call."""
         
