@@ -12,10 +12,11 @@ A high-performance command-line interface for interacting with xAI's Grok API, f
 - 📊 **Enhanced Tools**: Including `batch_read_files` for efficient multi-file operations
 - 🎪 **Rich UX**: Progress bars during rate limits with entertaining status messages
 - ⚙️ **Configurable**: Fully customizable via `settings.json`
+- 🎯 **Leader-Follower Mode**: Strategic planning with grok-3-mini creating execution plans for grok-4-0709
 
 ## 📋 Prerequisites
 
-- **Python 3.7 or higher**
+- **Python 3.8 or higher**
 - **pip** (Python package installer)
 - **xAI API key** (get one at https://x.ai/api)
 
@@ -54,7 +55,7 @@ A high-performance command-line interface for interacting with xAI's Grok API, f
 
 4. **Test the installation**:
    ```powershell
-   grok-cli --test
+   grok-cli --src . --test
    grok-cli --help
    ```
 
@@ -67,7 +68,7 @@ grok-env\Scripts\Activate.ps1
 
 # Install and test
 pip install -e .
-grok-cli --test
+grok-cli --src . --test
 ```
 
 ### WSL Ubuntu
@@ -102,7 +103,7 @@ grok-cli --test
 
 5. **Test the installation**:
    ```bash
-   grok-cli --test
+   grok-cli --src . --test
    grok-cli --help
    ```
 
@@ -135,7 +136,7 @@ grok-cli --test
 
 4. **Test the installation**:
    ```bash
-   grok-cli --test
+   grok-cli --src . --test
    grok-cli --help
    ```
 
@@ -155,7 +156,7 @@ grok-cli-env\Scripts\Activate.ps1
 
 # Install and test
 pip install -e .
-grok-cli --test
+grok-cli --src . --test
 ```
 
 ## ⚙️ Configuration
@@ -237,6 +238,10 @@ grok-cli --src /path/to/project --prompt "What is the capital of France?"
 # Interactive chat mode
 grok-cli --src /path/to/project --chat
 
+# Leader-Follower strategic planning mode 🎯
+grok-cli --src /path/to/project --lead --prompt "Implement user authentication system"
+grok-cli --src /path/to/project --lead  # Interactive objective input
+
 # With image analysis
 grok-cli --src /path/to/project --prompt "What's in this image?" --image path/to/image.jpg
 
@@ -247,7 +252,7 @@ grok-cli --src /path/to/project --prompt "Write a poem about AI" --stream
 grok-cli --src /path/to/project --prompt "Hello" --model grok-beta
 
 # Run self-tests
-grok-cli --test
+grok-cli --src /path/to/project --test
 ```
 
 ### Interactive Chat Commands
@@ -256,6 +261,79 @@ Once in chat mode (`grok-cli --src /path/to/project --chat`):
 - `/quit` - Exit the chat
 - `/clear` - Clear conversation history  
 - `/save <filename>` - Save conversation to JSON file
+
+### 🎯 Leader-Follower Mode (`--lead`)
+
+Revolutionary dual-model approach for complex task execution with strategic oversight:
+
+#### How It Works
+
+**🧠 Leader (grok-3-mini)** - Strategic Planner:
+- Performs systemic analysis with error boundary identification
+- Creates comprehensive 3-phase execution plans
+- Breaks down complex objectives into manageable milestones and tasks
+- Generates `tempWork/followMe.md` optimized for AI execution
+- Cost-efficient planning with focused strategic thinking
+
+**🚀 Follower (grok-4-0709)** - Execution Engine:
+- Follows strategic plan systematically using full tool suite
+- Implements solutions through Investigation → Heavy Lifting → Polish phases
+- Reports progress through each milestone and task
+- Adapts intelligently while maintaining strategic direction
+- High-performance execution with complete API access
+
+#### Usage Examples
+
+```bash
+# Strategic planning for complex development tasks
+grok-cli --src . --lead --prompt "Build a REST API with authentication and database integration"
+
+# Interactive mode - enter objective when prompted
+grok-cli --src . --lead
+# Enter your objective: Optimize this React application for performance
+
+# Web application development
+grok-cli --src ./my-webapp --lead --prompt "Add user dashboard with data visualization"
+
+# System architecture planning
+grok-cli --src ./microservices --lead --prompt "Implement distributed logging and monitoring"
+```
+
+#### The 3-Phase Execution Framework
+
+**Phase 1: Investigation 🔍**
+- Requirements analysis and system exploration
+- Dependency mapping and constraint identification
+- Current state assessment and gap analysis
+- Risk evaluation and error boundary identification
+
+**Phase 2: Heavy Lifting ⚡**
+- Core implementation work and coding
+- Testing and iterative development
+- Integration and system connectivity
+- Performance optimization and refactoring
+
+**Phase 3: Polish & Finalization ✨**
+- Comprehensive testing and quality assurance
+- Documentation and code cleanup
+- Final optimizations and tweaking
+- Deployment preparation and validation
+
+#### Strategic Plan Output
+
+The leader creates `tempWork/followMe.md` containing:
+- **Systemic Analysis**: Error boundaries, dependencies, and system context
+- **Detailed Milestones**: Major work efforts for each phase
+- **Meticulous Todo Tasks**: Step-by-step implementation checklist
+- **Execution Notes**: Implementation guidance and success criteria
+
+#### Best Use Cases
+
+- 🏗️ **Complex Development Projects**: Multi-component systems requiring coordination
+- 🔄 **System Refactoring**: Large-scale code improvements with multiple dependencies
+- 🚀 **Feature Implementation**: New functionality requiring multiple phases
+- 🔧 **Architecture Changes**: System-wide modifications with careful planning
+- 📊 **Performance Optimization**: Systematic approach to bottleneck resolution
 
 ### Advanced Usage
 
@@ -274,6 +352,12 @@ grok-cli --src /path/to/project --prompt "Create a Python script that prints 'He
 
 # Batch file operations
 grok-cli --src /path/to/project --prompt "Read all Python files in the grok_cli directory and summarize their purpose"
+
+# Leader-Follower strategic execution
+grok-cli --src /path/to/project --lead --prompt "Implement comprehensive test suite with unit and integration tests"
+
+# Leader-Follower with complex system architecture
+grok-cli --src /path/to/project --lead --prompt "Migrate this monolith to microservices architecture"
 ```
 
 ## 🔧 Architecture
@@ -282,10 +366,11 @@ The CLI features a clean, optimized architecture:
 
 ```
 grok_cli/
-├── cli.py              # Clean entry point with argument parsing
-├── engine.py           # Core functionality with integrated streaming
-├── utils.py            # Shared utilities (config, vision, gitignore)
-├── request_manager.py  # Advanced request batching and caching
+├── cli.py              # Clean entry point with argument parsing and mode routing
+├── engine.py           # Core functionality with integrated streaming and tools
+├── leader.py           # Leader-Follower orchestration for strategic planning 🎯
+├── utils.py            # Shared utilities (config, vision, gitignore, project context)
+├── request_manager.py  # Advanced request batching and caching optimization
 ├── thinking.json       # AI thinking prompts configuration
 └── startup.json        # Startup messages configuration
 ```
@@ -297,6 +382,8 @@ grok_cli/
 - **Intelligent Caching**: Avoid redundant API calls for file reads
 - **Progress Indicators**: Visual feedback during rate limit waits
 - **Tool Call Optimization**: Enhanced JSON parsing and error recovery
+- **Strategic Planning**: Leader-Follower architecture for complex task execution
+- **Cost Optimization**: grok-3-mini for planning, grok-4-0709 for execution
 
 ## 🐛 Troubleshooting
 
@@ -371,28 +458,28 @@ grok-cli --prompt "your prompt"
 ### File Operations
 ```bash
 # Create a project structure
-grok-cli --prompt "Create a Python project with main.py, requirements.txt, and README.md"
+grok-cli --src /path/to/project --prompt "Create a Python project with main.py, requirements.txt, and README.md"
 
 # Analyze codebase
-grok-cli --prompt "Read all Python files and create a summary of the project structure"
+grok-cli --src /path/to/project --prompt "Read all Python files and create a summary of the project structure"
 
 # Generate documentation
-grok-cli --prompt "Create a table of contents for all files in this project"
+grok-cli --src /path/to/project --prompt "Create a table of contents for all files in this project"
 ```
 
 ### Web Search & Research
 ```bash
 # Latest news (requires BRAVE_SEARCH_API_KEY)
-grok-cli --prompt "What are the latest AI breakthroughs this month?"
+grok-cli --src /path/to/project --prompt "What are the latest AI breakthroughs this month?"
 
 # Technical research
-grok-cli --prompt "Search for best practices in Python CLI development"
+grok-cli --src /path/to/project --prompt "Search for best practices in Python CLI development"
 ```
 
 ### Interactive Development
 ```bash
 # Start interactive session
-grok-cli --chat
+grok-cli --src /path/to/project --chat
 
 # Example conversation:
 # You: Analyze the structure of this codebase
@@ -401,6 +488,27 @@ grok-cli --chat
 # Grok: [creates test files]
 # You: /save project_analysis.json
 # You: /quit
+```
+
+### 🎯 Leader-Follower Strategic Execution
+```bash
+# Complex system development with strategic planning
+grok-cli --src ./my-project --lead --prompt "Build a complete CI/CD pipeline with testing, staging, and deployment"
+
+# Example workflow:
+# 🧠 Leader (grok-3-mini) creates strategic plan:
+#   - Phase 1: Investigate current build system and requirements
+#   - Phase 2: Implement pipeline components and testing
+#   - Phase 3: Polish configuration and add monitoring
+#   - Saves detailed plan to tempWork/followMe.md
+
+# 🚀 Follower (grok-4-0709) executes systematically:
+#   - Reads strategic plan from followMe.md
+#   - Executes each phase methodically
+#   - Reports milestone completion
+#   - Adapts plan based on discovered requirements
+
+# Result: Complete CI/CD system with strategic oversight
 ```
 
 ## 🔒 Security

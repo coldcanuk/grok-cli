@@ -10,6 +10,7 @@ import sys
 
 from .engine import GrokEngine, DEFAULT_MODEL
 from .utils import get_api_key, build_vision_content, get_random_message
+from .leader import LeaderFollowerOrchestrator
 
 def single_prompt(args, engine: GrokEngine):
     """Handle single prompt mode."""
@@ -62,6 +63,23 @@ def interactive_chat(args, engine: GrokEngine):
         
         engine.run_chat_loop(args, key, brave_key, history)
 
+def leader_mode(args, engine: GrokEngine):
+    """Handle leader-follower mode with strategic planning."""
+    print(f"\n🎯 Leader Mode Activated: Strategic Planning & Execution")
+    print("Leader (grok-3-mini) will create a strategic plan")
+    print("Follower (grok-4-0709) will execute the plan\n")
+    
+    if not args.prompt:
+        objective = input("Enter your objective: ").strip()
+        if not objective:
+            print("No objective provided. Exiting.")
+            return
+    else:
+        objective = args.prompt
+    
+    orchestrator = LeaderFollowerOrchestrator(engine, args.src)
+    orchestrator.execute_leader_follower_workflow(objective, args)
+
 def test_mode():
     """Run simple self-tests."""
     print("Testing Grok CLI...")
@@ -92,6 +110,7 @@ def main():
     parser.add_argument("--debug", type=int, choices=[0, 1], help="Debug mode: 1=on, 0=off (overrides GROK_DEBUG env var).")
     parser.add_argument("--src", required=True, help="Source directory to operate from (REQUIRED). Grok CLI will work within this directory boundary and load context from .grok/ subdirectory.")
     parser.add_argument("--test", action="store_true", help="Run self-tests.")
+    parser.add_argument("--lead", action="store_true", help="Enable leader mode: grok-3-mini creates strategic plan for grok-4-0709 to execute.")
     
     args = parser.parse_args()
 
@@ -107,11 +126,13 @@ def main():
     # Set the working directory boundary
     engine.set_source_directory(args.src)
 
-    if not args.prompt and not args.chat:
+    if not args.prompt and not args.chat and not args.lead:
         parser.print_help()
         sys.exit(1)
 
-    if args.prompt:
+    if args.lead:
+        leader_mode(args, engine)
+    elif args.prompt:
         single_prompt(args, engine)
     elif args.chat:
         interactive_chat(args, engine)
