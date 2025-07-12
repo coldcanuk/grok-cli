@@ -659,9 +659,16 @@ class GroKitGridIntegration:
             self._update_status("AI is reasoning deeply...")
             self.renderer.render_full_screen()
             
-            ai_response = self._get_ai_response(prompt, reasoning=True)
+            ai_response, token_info = self._get_ai_response(prompt, reasoning=True)
             if ai_response:
-                self.renderer.add_ai_message("assistant", f"[REASONING] {ai_response}")
+                # Use token info from API response if available
+                if token_info:
+                    self.renderer.add_ai_message("assistant", f"[REASONING] {ai_response}",
+                                                timestamp=datetime.now().strftime("%H:%M:%S"),
+                                                cost=token_info['cost'],
+                                                tokens=token_info['tokens'])
+                else:
+                    self.renderer.add_ai_message("assistant", f"[REASONING] {ai_response}")
                 self.storage.add_message("assistant", ai_response, {"reasoning": True})
             
             self._update_cost_display()
@@ -743,15 +750,15 @@ class GroKitGridIntegration:
         self.renderer.render_ai_window()
         self.renderer.render_input_area()
     
-    def _get_ai_response(self, user_input: str, reasoning: bool = False) -> str:
-        """Get real AI response using GrokEngine with streaming."""
+    def _get_ai_response(self, user_input: str, reasoning: bool = False) -> Tuple[str, Optional[Dict[str, Any]]]:
+        """Get real AI response using GrokEngine with streaming. Returns (response_text, token_info)."""
         try:
             import os
             
             # Check for API key
             api_key = os.getenv('XAI_API_KEY')
             if not api_key:
-                return "Error: No XAI_API_KEY found. Please set your API key in environment variables."
+                return "Error: No XAI_API_KEY found. Please set your API key in environment variables.", None
             
             # Create messages for the conversation with enhanced system prompt
             system_prompt = self.engine.get_enhanced_system_prompt()
@@ -774,20 +781,63 @@ class GroKitGridIntegration:
                 # Get response with reasoning support using SDK
                 response = self.engine.api_call(api_key, messages, args.model, args.stream, self.engine.tools, retry_count=0, reasoning=reasoning)
                 
+                # Initialize token info
+                token_info = None
+                
                 # Check if we're using SDK response
                 if hasattr(response, 'sdk_response'):
-                    # SDK response format - update costs immediately
+                    # SDK response format - extract usage info
+                    if hasattr(response, 'usage'):
+                        usage = response.usage
+                        total_tokens = getattr(usage, 'prompt_tokens', 0) + getattr(usage, 'completion_tokens', 0)
+                        
+                        # Calculate cost
+                        from .tokenCount import GrokPricing
+                        pricing = GrokPricing.get_model_pricing(args.model)
+                        input_cost = GrokPricing.calculate_token_cost(getattr(usage, 'prompt_tokens', 0), pricing["input"])
+                        output_cost = GrokPricing.calculate_token_cost(getattr(usage, 'completion_tokens', 0), pricing["output"])
+                        total_cost = input_cost + output_cost
+                        
+                        token_info = {
+                            'cost': f"${total_cost:.4f}",
+                            'tokens': total_tokens
+                        }
+                    
+                    # Update cost display after getting token info
                     self._update_cost_display()
                     
                     if reasoning and hasattr(response, 'reasoning_content') and response.reasoning_content:
-                        return f"[REASONING]\n{response.reasoning_content}\n\n[RESPONSE]\n{response.content}"
+                        return f"[REASONING]\n{response.reasoning_content}\n\n[RESPONSE]\n{response.content}", token_info
                     else:
-                        return response.content if response.content else "I apologize, but I couldn't generate a response."
+                        return response.content if response.content else "I apologize, but I couldn't generate a response.", token_info
                 elif args.stream:
                     # Handle streaming response (requests) with real-time cost updates
                     assistant_content, tool_calls, tool_outputs = self.engine.handle_stream_with_tools(
                         response, brave_key, debug_mode=args.debug, capture_tools=True
                     )
+                    
+                    # Get the latest token usage from the token counter after streaming
+                    if self.token_counter:
+                        # Get the last operation's token usage
+                        summary = self.token_counter.get_session_summary()
+                        if summary and summary.get('operations_count', 0) > 0:
+                            # Get the most recent operation's cost and tokens
+                            operations = self.token_counter.session_costs.operations
+                            if operations:
+                                last_op = operations[-1]
+                                total_tokens = last_op.input_tokens + last_op.output_tokens
+                                
+                                # Calculate cost for this operation
+                                from .tokenCount import GrokPricing
+                                pricing = GrokPricing.get_model_pricing(args.model)
+                                input_cost = GrokPricing.calculate_token_cost(last_op.input_tokens, pricing["input"])
+                                output_cost = GrokPricing.calculate_token_cost(last_op.output_tokens, pricing["output"])
+                                total_cost = input_cost + output_cost
+                                
+                                token_info = {
+                                    'cost': f"${total_cost:.4f}",
+                                    'tokens': total_tokens
+                                }
                     
                     # Update cost display after streaming completes
                     self._update_cost_display()
@@ -795,25 +845,25 @@ class GroKitGridIntegration:
                     # If we have tool outputs (including diffs), append them to the response
                     if tool_outputs:
                         if assistant_content:
-                            return f"{assistant_content}\n\n{tool_outputs}"
+                            return f"{assistant_content}\n\n{tool_outputs}", token_info
                         else:
-                            return tool_outputs
+                            return tool_outputs, token_info
                     
-                    return assistant_content if assistant_content else "I apologize, but I couldn't generate a response."
+                    return assistant_content if assistant_content else "I apologize, but I couldn't generate a response.", token_info
                 else:
                     # Handle non-streaming response (requests) with cost update
                     self._update_cost_display()
                     
                     if hasattr(response, 'choices') and response.choices:
-                        return response.choices[0].message.content
+                        return response.choices[0].message.content, token_info
                     else:
-                        return "I apologize, but I couldn't generate a response."
+                        return "I apologize, but I couldn't generate a response.", token_info
                         
             except Exception as e:
-                return f"Error communicating with AI: {str(e)}"
+                return f"Error communicating with AI: {str(e)}", None
                 
         except Exception as e:
-            return f"Error in AI response system: {str(e)}"
+            return f"Error in AI response system: {str(e)}", None
     
     def _on_input_update(self, text: str, cursor_pos: int):
         """Callback for real-time input updates."""
@@ -850,15 +900,14 @@ class GroKitGridIntegration:
                     self.renderer.render_ai_window()
                     self.renderer.render_status_bar()
                     
-                    ai_response = self._get_ai_response(processed_input)
+                    ai_response, token_info = self._get_ai_response(processed_input)
                     if ai_response:
-                        # Extract cost info if present in response
-                        cost_info = self._extract_cost_info(ai_response)
-                        if cost_info:
+                        # Use token info from API response if available
+                        if token_info:
                             self.renderer.add_ai_message("assistant", ai_response, 
                                                         timestamp=datetime.now().strftime("%H:%M:%S"),
-                                                        cost=cost_info['cost'],
-                                                        tokens=cost_info['tokens'])
+                                                        cost=token_info['cost'],
+                                                        tokens=token_info['tokens'])
                         else:
                             self.renderer.add_ai_message("assistant", ai_response)
                         self.storage.add_message("assistant", ai_response)
