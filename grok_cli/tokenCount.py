@@ -273,35 +273,42 @@ class TokenCounter:
     def display_cost_warning(self, estimated_cost: float, threshold: float = 1.0):
         """Display warning if estimated cost exceeds threshold."""
         if estimated_cost > threshold:
-            print(f"WARNING: High cost operation: ${estimated_cost:.4f} USD")
-            print(f"   Session total will be: ${self.session_costs.total_cost + estimated_cost:.4f} USD")
+            # NOTE: These warnings should be displayed through the UI, not printed directly
+            # print(f"WARNING: High cost operation: ${estimated_cost:.4f} USD")
+            # print(f"   Session total will be: ${self.session_costs.total_cost + estimated_cost:.4f} USD")
+            pass
     
     def display_session_costs(self):
         """Display current session costs in a user-friendly format."""
         summary = self.get_session_summary()
         
-        print("\nSession Cost Summary")
-        print("=" * 50)
-        print(f"Session Duration: {summary['session_duration']}")
-        print(f"Total Cost: ${summary['total_cost_usd']:.4f} USD")
-        print()
-        print("Cost Breakdown:")
+        # NOTE: This method should return formatted text, not print directly
+        # The calling code should handle displaying this through the UI
+        # Commenting out all print statements to prevent UI corruption
         
-        breakdown = summary['cost_breakdown']
-        if breakdown['input_tokens']['count'] > 0:
-            print(f"  Input Tokens: {breakdown['input_tokens']['count']:,} -> ${breakdown['input_tokens']['cost']:.4f}")
-        
-        if breakdown['output_tokens']['count'] > 0:
-            print(f"  Output Tokens: {breakdown['output_tokens']['count']:,} -> ${breakdown['output_tokens']['cost']:.4f}")
-        
-        if breakdown['cached_tokens']['count'] > 0:
-            print(f"  Cached Tokens: {breakdown['cached_tokens']['count']:,} -> ${breakdown['cached_tokens']['cost']:.4f}")
-        
-        if breakdown['live_searches']['count'] > 0:
-            print(f"  Live Searches: {breakdown['live_searches']['count']} -> ${breakdown['live_searches']['cost']:.4f}")
-        
-        print(f"\nOperations: {summary['operations_count']}")
-        print("=" * 50)
+        # print("\nSession Cost Summary")
+        # print("=" * 50)
+        # print(f"Session Duration: {summary['session_duration']}")
+        # print(f"Total Cost: ${summary['total_cost_usd']:.4f} USD")
+        # print()
+        # print("Cost Breakdown:")
+        # 
+        # breakdown = summary['cost_breakdown']
+        # if breakdown['input_tokens']['count'] > 0:
+        #     print(f"  Input Tokens: {breakdown['input_tokens']['count']:,} -> ${breakdown['input_tokens']['cost']:.4f}")
+        # 
+        # if breakdown['output_tokens']['count'] > 0:
+        #     print(f"  Output Tokens: {breakdown['output_tokens']['count']:,} -> ${breakdown['output_tokens']['cost']:.4f}")
+        # 
+        # if breakdown['cached_tokens']['count'] > 0:
+        #     print(f"  Cached Tokens: {breakdown['cached_tokens']['count']:,} -> ${breakdown['cached_tokens']['cost']:.4f}")
+        # 
+        # if breakdown['live_searches']['count'] > 0:
+        #     print(f"  Live Searches: {breakdown['live_searches']['count']} -> ${breakdown['live_searches']['cost']:.4f}")
+        # 
+        # print(f"\nOperations: {summary['operations_count']}")
+        # print("=" * 50)
+        pass
     
     def _get_session_duration(self) -> str:
         """Calculate session duration as human-readable string."""

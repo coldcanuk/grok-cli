@@ -676,14 +676,36 @@ class GroKitGridIntegration:
         """Show cost summary."""
         if self.token_counter:
             summary = self.token_counter.get_session_summary()
+            breakdown = summary.get('cost_breakdown', {})
+            
             cost_msg = (
                 f"Session Cost Summary:\n"
-                f"Total Cost: ${summary.get('total_cost_usd', 0.0):.4f}\n"
-                f"Total Tokens: {summary.get('total_tokens', 0):,}\n"
-                f"Input Tokens: {summary.get('input_tokens', 0):,}\n"
-                f"Output Tokens: {summary.get('output_tokens', 0):,}\n"
-                f"Requests: {summary.get('request_count', 0)}"
+                f"Session Duration: {summary.get('session_duration', 'N/A')}\n"
+                f"Total Cost: ${summary.get('total_cost_usd', 0.0):.4f} USD\n\n"
+                f"Cost Breakdown:\n"
             )
+            
+            # Add input tokens info
+            input_info = breakdown.get('input_tokens', {})
+            if input_info.get('count', 0) > 0:
+                cost_msg += f"  Input Tokens: {input_info.get('count', 0):,} -> ${input_info.get('cost', 0.0):.4f}\n"
+            
+            # Add output tokens info
+            output_info = breakdown.get('output_tokens', {})
+            if output_info.get('count', 0) > 0:
+                cost_msg += f"  Output Tokens: {output_info.get('count', 0):,} -> ${output_info.get('cost', 0.0):.4f}\n"
+            
+            # Add cached tokens info
+            cached_info = breakdown.get('cached_tokens', {})
+            if cached_info.get('count', 0) > 0:
+                cost_msg += f"  Cached Tokens: {cached_info.get('count', 0):,} -> ${cached_info.get('cost', 0.0):.4f}\n"
+            
+            # Add live searches info
+            search_info = breakdown.get('live_searches', {})
+            if search_info.get('count', 0) > 0:
+                cost_msg += f"  Live Searches: {search_info.get('count', 0)} -> ${search_info.get('cost', 0.0):.4f}\n"
+            
+            cost_msg += f"\nOperations: {summary.get('operations_count', 0)}"
         else:
             cost_msg = "Cost tracking not available."
         
