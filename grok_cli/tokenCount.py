@@ -245,30 +245,45 @@ class TokenCounter:
         """Get a comprehensive summary of the current session."""
         duration = self._get_session_duration()
         
-        return {
+        summary = {
             "session_duration": duration,
-            "total_cost_usd": round(self.session_costs.total_cost, 4),
+            "total_cost_usd": round(self.session_costs.total_cost, 6),
+            "total_tokens": self.session_costs.total_input_tokens + self.session_costs.total_output_tokens,
             "cost_breakdown": {
                 "input_tokens": {
                     "count": self.session_costs.total_input_tokens,
-                    "cost": round(self.session_costs.total_input_cost, 4)
+                    "cost": round(self.session_costs.total_input_cost, 6)
                 },
                 "output_tokens": {
                     "count": self.session_costs.total_output_tokens,
-                    "cost": round(self.session_costs.total_output_cost, 4)
+                    "cost": round(self.session_costs.total_output_cost, 6)
                 },
                 "cached_tokens": {
                     "count": self.session_costs.total_cached_tokens,
-                    "cost": round(self.session_costs.total_cached_cost, 4)
+                    "cost": round(self.session_costs.total_cached_cost, 6)
                 },
                 "live_searches": {
                     "count": self.session_costs.total_searches,
-                    "cost": round(self.session_costs.total_search_cost, 4)
+                    "cost": round(self.session_costs.total_search_cost, 6)
                 }
             },
             "operations_count": len(self.session_costs.operations),
-            "start_time": self.session_costs.start_time
+            "start_time": self.session_costs.start_time,
         }
+
+        # Add last operation details
+        if self.session_costs.operations:
+            last_op = self.session_costs.operations[-1]
+            pricing = GrokPricing.get_model_pricing(last_op.model)
+            input_cost = GrokPricing.calculate_token_cost(last_op.input_tokens, pricing["input"])
+            output_cost = GrokPricing.calculate_token_cost(last_op.output_tokens, pricing["output"])
+            
+            summary["last_operation"] = {
+                "cost": round(input_cost + output_cost, 6),
+                "tokens": last_op.input_tokens + last_op.output_tokens
+            }
+        
+        return summary
     
     def display_cost_warning(self, estimated_cost: float, threshold: float = 1.0):
         """Display warning if estimated cost exceeds threshold."""

@@ -219,13 +219,10 @@ class GridRenderer:
         
         # Build header with optional cost/token info for assistant messages
         header = f"{role.upper()}: {timestamp}"
-        if role == 'assistant' and (msg.get('cost') or msg.get('tokens')):
-            cost_info = []
-            if msg.get('cost'):
-                cost_info.append(msg['cost'])
-            if msg.get('tokens'):
-                cost_info.append(f"{msg['tokens']} tokens")
-            header += f" [{', '.join(cost_info)}]"
+        if role == 'assistant' and (msg.get('cost') and msg.get('tokens')):
+            cost_str = msg.get('cost', '$0.0000')
+            tokens_str = msg.get('tokens', '0')
+            header += f" [Cost: {cost_str} | Tokens: {tokens_str}]"
         
         self.move_cursor(y, x)
         print(f"{self.colors[color]}{header}{self.colors['end']}", end="")
@@ -458,61 +455,17 @@ class GridRenderer:
             self.status_content['tokens'] = tokens
     
     def clear_ai_history(self):
-        """Clear the AI conversation history."""
+        """Clear the AI conversation history and re-render the screen."""
         self.ai_content = []
+        self.render_full_screen() # Re-render to show the cleared state
     
     def update_message_content_streaming(self, message_index: int, new_content: str):
-        """Update message content for streaming without full window refresh."""
+        """Update message content for streaming and re-render the AI window."""
         if 0 <= message_index < len(self.ai_content):
-            # Update content
             self.ai_content[message_index]['content'] = new_content
-            
-            # Use efficient in-place update instead of full window refresh
-            self._update_message_in_place(message_index)
-    
-    def _update_message_in_place(self, message_index: int):
-        """Efficiently update a specific message area without full redraw."""
-        try:
-            if message_index < 0 or message_index >= len(self.ai_content):
-                return
-                
-            # Only update if this is the last message (typical for streaming)
-            # and if it's currently visible
-            if message_index == len(self.ai_content) - 1:
-                # For streaming, we only update the last line of content
-                # This avoids the expensive full window redraw
-                msg = self.ai_content[message_index]
-                content = msg.get('content', '')
-                
-                # Simple approach: just move cursor to end of content area and print last chunk
-                # This gives streaming appearance without full redraws
-                if content:
-                    # Calculate approximate position (simplified)
-                    ai_y = self.header_height + 1
-                    content_start_y = ai_y + 1
-                    
-                    # Move to a reasonable position and show we're streaming
-                    lines = content.split('\n')
-                    if lines:
-                        last_line = lines[-1]
-                        # Show last chunk of content
-                        if len(last_line) > 2:  # Only show if substantial
-                            # Find a good position to show streaming indicator
-                            content_width = self.width - 6
-                            display_line = last_line[-min(50, len(last_line)):]  # Last 50 chars
-                            
-                            # Move cursor to a position that won't interfere
-                            cursor_y = content_start_y + min(5, len(lines))
-                            if cursor_y < self.height - 5:  # Make sure we're not too low
-                                self.move_cursor(cursor_y, 4)
-                                # Show a small streaming indicator without clearing everything
-                                print(f"{self.colors['dim']}●{self.colors['end']}", end="")
-                                sys.stdout.flush()
-            
-        except Exception:
-            # If in-place update fails, silently continue
-            # Don't fall back to full refresh to avoid the bug
-            pass
+            # A full window re-render is necessary to handle text wrapping and height changes correctly.
+            self.render_ai_window()
+            sys.stdout.flush()
 
 
 class VersionManager:

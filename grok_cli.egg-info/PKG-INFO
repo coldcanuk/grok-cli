@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: grok-cli
-Version: 2025.1.0a5
+Version: 2025.1.0b6
 Summary: A high-performance command-line interface for interacting with xAI's Grok API
 Author-email: Grok CLI Team <noreply@example.com>
 Maintainer-email: Grok CLI Team <noreply@example.com>
