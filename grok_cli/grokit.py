@@ -77,23 +77,25 @@ class GroKitUI(GroKitInterface):
         """Print the main menu options."""
         self.print_styled("\nSelect an option:", "blue")
         try:
-            self.print_styled("1. 💬 Interactive Chat (Grid UI)", "green")
-            self.print_styled("2. 🔄 Resume Previous Session", "green")
-            self.print_styled("3. 🎯 Leader Mode (Strategic Planning)", "green")
-            self.print_styled("4. 📋 Single Prompt", "green")
-            self.print_styled("5. ⚙️  Settings", "green")
-            self.print_styled("6. 📊 Cost Analysis", "green")
-            self.print_styled("7. ❓ Help", "green")
-            self.print_styled("8. 🚪 Exit", "green")
+            self.print_styled("1. 🚀 Streaming Chat (New!)", "green")
+            self.print_styled("2. 💬 Interactive Chat (Grid UI)", "green")
+            self.print_styled("3. 🔄 Resume Previous Session", "green")
+            self.print_styled("4. 🎯 Leader Mode (Strategic Planning)", "green")
+            self.print_styled("5. 📋 Single Prompt", "green")
+            self.print_styled("6. ⚙️  Settings", "green")
+            self.print_styled("7. 📊 Cost Analysis", "green")
+            self.print_styled("8. ❓ Help", "green")
+            self.print_styled("9. 🚪 Exit", "green")
         except UnicodeEncodeError:
-            self.print_styled("1. Interactive Chat (Grid UI)", "green")
-            self.print_styled("2. Resume Previous Session", "green")
-            self.print_styled("3. Leader Mode (Strategic Planning)", "green")
-            self.print_styled("4. Single Prompt", "green")
-            self.print_styled("5. Settings", "green")
-            self.print_styled("6. Cost Analysis", "green")
-            self.print_styled("7. Help", "green")
-            self.print_styled("8. Exit", "green")
+            self.print_styled("1. Streaming Chat (New!)", "green")
+            self.print_styled("2. Interactive Chat (Grid UI)", "green")
+            self.print_styled("3. Resume Previous Session", "green")
+            self.print_styled("4. Leader Mode (Strategic Planning)", "green")
+            self.print_styled("5. Single Prompt", "green")
+            self.print_styled("6. Settings", "green")
+            self.print_styled("7. Cost Analysis", "green")
+            self.print_styled("8. Help", "green")
+            self.print_styled("9. Exit", "green")
         
         self.print_cost_summary(compact=True)
         self.print_styled(f"\nWorking Directory: {self.src_path}", "yellow")
@@ -102,13 +104,13 @@ class GroKitUI(GroKitInterface):
         """Get user menu selection."""
         while True:
             try:
-                choice = input(f"\n{self.colors['bold']}Enter choice (1-8): {self.colors['end']}").strip()
-                if choice in ['1', '2', '3', '4', '5', '6', '7', '8']:
+                choice = input(f"\n{self.colors['bold']}Enter choice (1-9): {self.colors['end']}").strip()
+                if choice in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
                     return choice
                 else:
-                    print(f"{self.colors['red']}Invalid choice. Please enter 1-8.{self.colors['end']}")
+                    print(f"{self.colors['red']}Invalid choice. Please enter 1-9.{self.colors['end']}")
             except KeyboardInterrupt:
-                return '8'  # Exit on Ctrl+C
+                return '9'  # Exit on Ctrl+C
     
     def run_grok_cli_command(self, args: List[str]) -> Tuple[bool, str]:
         """Execute grok-cli command and return success status and output."""
@@ -245,10 +247,30 @@ class GroKitUI(GroKitInterface):
         print("• /help - Show this help")
         print("• /quit - Exit chat")
     
+    def launch_streaming_chat(self):
+        """Launch the new streaming chat interface."""
+        self.clear_screen()
+        self.print_styled("🚀 Launching Streaming Chat...", "cyan")
+        print("\nInitializing smooth streaming interface with:")
+        print("• Real-time AI response streaming")
+        print("• Rich markdown and code syntax highlighting")
+        print("• Classic terminal feel with modern formatting")
+        print("• No screen flickering or refresh issues")
+        print("• Live cost tracking")
+        
+        try:
+            from .streaming_ui import StreamingAIChat
+            streaming_chat = StreamingAIChat(self.src_path)
+            streaming_chat.run()
+        except Exception as e:
+            self.print_styled(f"\nError launching Streaming Chat: {e}", "red")
+            self.print_styled("Falling back to Grid UI...", "yellow")
+            self.launch_grid_ui()
+            
     def launch_grid_ui(self):
         """Launch the enhanced grid UI interface."""
         self.clear_screen()
-        self.print_styled("🖥️  Launching Grid UI...", "cyan")
+        self.print_styled("💬 Launching Grid UI...", "cyan")
         print("\nInitializing enhanced interface with:")
         print("• Grid-based layout with header, chat, input, and status areas")
         print("• Persistent chat history in .grok/history/")
