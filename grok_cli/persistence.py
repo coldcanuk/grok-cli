@@ -150,6 +150,21 @@ class PersistentStorage:
         session_data = self._load_session_data()
         return session_data.get("messages", [])
     
+    def get_chat_history(self) -> List[Dict]:
+        """Get chat history formatted for API calls (role and content only)."""
+        messages = self.get_session_messages()
+        
+        # Convert to API format (only role and content)
+        api_messages = []
+        for msg in messages:
+            api_msg = {
+                "role": msg.get("role", "user"),
+                "content": msg.get("content", "")
+            }
+            api_messages.append(api_msg)
+        
+        return api_messages
+    
     def get_recent_history(self, days: int = 7, limit: int = 100) -> List[Dict]:
         """Get recent chat history across sessions."""
         messages = []

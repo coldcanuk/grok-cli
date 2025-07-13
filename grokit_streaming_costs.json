@@ -1,0 +1,122 @@
+{
+  "total_input_cost": 0.07652400000000001,
+  "total_output_cost": 0.01761,
+  "total_cached_cost": 0.0,
+  "total_search_cost": 0.0,
+  "total_cost": 0.09413400000000001,
+  "total_input_tokens": 25508,
+  "total_output_tokens": 1174,
+  "total_cached_tokens": 0,
+  "total_searches": 0,
+  "start_time": "2025-07-13T01:35:28.708680+00:00",
+  "operations": [
+    {
+      "input_tokens": 1572,
+      "output_tokens": 58,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:35:38.249927+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 1583,
+      "output_tokens": 79,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:36:05.891114+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 1578,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:36:49.141226+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 1591,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:37:12.036522+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 1577,
+      "output_tokens": 42,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:45:17.600349+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 1646,
+      "output_tokens": 212,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:45:37.156533+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 1876,
+      "output_tokens": 346,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:46:29.634338+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 2246,
+      "output_tokens": 437,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:46:51.244112+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 2702,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:47:10.747936+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 2702,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:47:28.429009+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 3358,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:49:20.085376+00:00",
+      "operation_type": "chat"
+    },
+    {
+      "input_tokens": 3077,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "live_searches": 0,
+      "model": "grok-4-0709",
+      "timestamp": "2025-07-13T01:49:52.523543+00:00",
+      "operation_type": "chat"
+    }
+  ]
+}

@@ -93,8 +93,11 @@ class StreamingRenderer:
             self.console.print()
             
         else:
-            # Fallback for terminals without Rich
-            print(f"\n{self.colors['cyan']}{self.colors['bold']}🚀 {title} 🚀{self.colors['reset']}")
+            # Fallback for terminals without Rich (ASCII-safe)
+            try:
+                print(f"\n{self.colors['cyan']}{self.colors['bold']}🚀 {title} 🚀{self.colors['reset']}")
+            except UnicodeEncodeError:
+                print(f"\n{self.colors['cyan']}{self.colors['bold']}** {title} **{self.colors['reset']}")
             print("=" * 50)
             print(f"{self.colors['dim']}Real-time AI chat with enhanced formatting{self.colors['reset']}")
             print("=" * 50)
@@ -129,24 +132,17 @@ class StreamingRenderer:
             self.console.print(ai_header, end="")
             
         else:
-            print(f"{self.colors['dim']}[{timestamp}]{self.colors['reset']} {self.colors['blue']}{self.colors['bold']}🤖 AI:{self.colors['reset']} ", end='', flush=True)
+            try:
+                print(f"{self.colors['dim']}[{timestamp}]{self.colors['reset']} {self.colors['blue']}{self.colors['bold']}🤖 AI:{self.colors['reset']} ", end='', flush=True)
+            except UnicodeEncodeError:
+                print(f"{self.colors['dim']}[{timestamp}]{self.colors['reset']} {self.colors['blue']}{self.colors['bold']}AI:{self.colors['reset']} ", end='', flush=True)
     
     def stream_content(self, content_chunk: str, is_complete: bool = False):
         """Stream content chunk with formatting - the magic happens here!"""
         if RICH_AVAILABLE:
-            # For complete content, render as markdown
-            if is_complete and ('```' in content_chunk or '#' in content_chunk or '*' in content_chunk):
-                # This is likely markdown, render it beautifully
-                try:
-                    md = Markdown(content_chunk, code_theme="monokai")
-                    self.console.print(md)
-                except:
-                    # Fallback to plain text if markdown fails
-                    self.console.print(content_chunk)
-            else:
-                # Stream raw text for real-time effect
-                self.console.print(content_chunk, end="", highlight=False)
-                
+            # Always stream as plain text for real-time effect
+            # Don't try to detect or render markdown during streaming
+            self.console.print(content_chunk, end="", highlight=False)
         else:
             # Fallback streaming
             print(content_chunk, end='', flush=True)
@@ -154,14 +150,7 @@ class StreamingRenderer:
     def finish_ai_response(self, final_content: str = "", cost_info: Optional[Dict] = None):
         """Finish the AI response with optional cost info."""
         if RICH_AVAILABLE:
-            # If we have complete content, do final markdown render
-            if final_content and ('```' in final_content or '#' in final_content):
-                # Clear the line and re-render with full markdown
-                self.console.print()  # New line
-                md = Markdown(final_content, code_theme="monokai")
-                self.console.print(md)
-            
-            # Show cost info if available
+            # Just show cost info - don't re-render content (it was already streamed)
             if cost_info:
                 cost_text = Text()
                 cost_text.append("    💰 ", style="dim")
@@ -175,7 +164,10 @@ class StreamingRenderer:
         else:
             print()  # New line
             if cost_info:
-                print(f"    {self.colors['dim']}💰 Cost: {cost_info.get('cost', '$0.0000')} | Tokens: {cost_info.get('tokens', '0')}{self.colors['reset']}")
+                try:
+                    print(f"    {self.colors['dim']}💰 Cost: {cost_info.get('cost', '$0.0000')} | Tokens: {cost_info.get('tokens', '0')}{self.colors['reset']}")
+                except UnicodeEncodeError:
+                    print(f"    {self.colors['dim']}Cost: {cost_info.get('cost', '$0.0000')} | Tokens: {cost_info.get('tokens', '0')}{self.colors['reset']}")
             print()
     
     def show_system_message(self, message: str, style: str = "info"):
@@ -210,6 +202,7 @@ class StreamingRenderer:
 
 **Tips:**
 - Just type normally to chat with AI
+- For multiline input: end your first line with `###`, then type more lines, then `###` on a new line to submit
 - Code blocks get syntax highlighting automatically
 - Responses stream in real-time
 - Ctrl+C to exit anytime
@@ -218,8 +211,11 @@ class StreamingRenderer:
             self.console.print(Panel(md, border_style="blue", title="Help"))
             
         else:
-            print(f"\n{self.colors['blue']}📖 GroKit Commands{self.colors['reset']}")
-            print("─" * 30)
+            try:
+                print(f"\n{self.colors['blue']}📖 GroKit Commands{self.colors['reset']}")
+            except UnicodeEncodeError:
+                print(f"\n{self.colors['blue']}GroKit Commands{self.colors['reset']}")
+            print("-" * 30)
             print(f"{self.colors['green']}/clear{self.colors['reset']} - Clear chat history")
             print(f"{self.colors['green']}/costs{self.colors['reset']} - Show costs")
             print(f"{self.colors['green']}/help{self.colors['reset']} - Show help")
@@ -243,15 +239,18 @@ class StreamingRenderer:
             self.console.print(Panel(md, border_style="cyan", title="Cost Tracking"))
             
         else:
-            print(f"\n{self.colors['cyan']}💰 Cost Summary{self.colors['reset']}")
-            print("─" * 20)
+            try:
+                print(f"\n{self.colors['cyan']}💰 Cost Summary{self.colors['reset']}")
+            except UnicodeEncodeError:
+                print(f"\n{self.colors['cyan']}Cost Summary{self.colors['reset']}")
+            print("-" * 20)
             print(f"Total: ${cost_data.get('total_cost_usd', 0.0):.6f} USD")
             print(f"Tokens: {cost_data.get('total_tokens', 0):,}")
             print(f"Operations: {cost_data.get('operations_count', 0)}")
             print()
 
     def get_input(self, prompt: str = "You") -> str:
-        """Get user input with a clean prompt."""
+        """Get user input with multiline support."""
         if RICH_AVAILABLE:
             # Use rich prompt with timestamp
             timestamp = datetime.now().strftime("%H:%M:%S")
@@ -260,10 +259,54 @@ class StreamingRenderer:
             prompt_text.append(f"{prompt}: ", style="bold green")
             
             self.console.print(prompt_text, end="")
-            return input()
+            
+            # Check if user wants multiline (they'll type ###)
+            first_line = input()
+            
+            # Check for multiline mode (if user types ### at the end)
+            if first_line.endswith("###"):
+                # Remove the ### and enter multiline mode
+                lines = [first_line[:-3]]
+                self.console.print("\n(Multi-line mode: Type '###' on new line to submit)", style="dim")
+                
+                while True:
+                    try:
+                        line = input("... ")
+                        if line.strip() == "###":
+                            break
+                        lines.append(line)
+                    except KeyboardInterrupt:
+                        break
+                
+                user_input = "\n".join(lines).strip()
+            else:
+                user_input = first_line
+            
+            # Clear the input area and show the complete user message properly formatted
+            user_display = Text()
+            user_display.append(f"[{timestamp}] ", style="dim")
+            user_display.append("You: ", style="bold green")
+            
+            # Show multiline content with proper formatting
+            if "\n" in user_input:
+                # For multiline, show a truncated version inline
+                first_line_display = user_input.split('\n')[0]
+                if len(first_line_display) > 60:
+                    first_line_display = first_line_display[:60] + "..."
+                user_display.append(f"{first_line_display} [multiline]", style="default")
+            else:
+                user_display.append(user_input, style="default")
+            
+            # Move cursor up and clear, then print formatted message
+            print("\033[A\033[K", end="")  # ANSI: move up one line and clear
+            self.console.print(user_display)
+            
+            return user_input
         else:
             timestamp = datetime.now().strftime("%H:%M:%S")
-            return input(f"{self.colors['dim']}[{timestamp}]{self.colors['reset']} {self.colors['green']}{prompt}:{self.colors['reset']} ")
+            user_input = input(f"{self.colors['dim']}[{timestamp}]{self.colors['reset']} {self.colors['green']}{prompt}:{self.colors['reset']} ")
+            # For fallback, basic single line input
+            return user_input
 
 class StreamingAIChat:
     """Classic terminal chat interface with streaming AI responses."""
@@ -310,8 +353,7 @@ class StreamingAIChat:
                         else:
                             break  # Exit requested
                     
-                    # Show user message
-                    self.renderer.show_user_message(user_input)
+                    # Note: user message display is already handled in get_input, no need to show again
                     
                     # Store user message
                     self.storage.add_message("user", user_input)
@@ -349,12 +391,17 @@ class StreamingAIChat:
                 self.renderer.stream_content(error_msg, True)
                 return error_msg
             
-            # Build messages for AI
+            # Build messages for AI with conversation history
             system_prompt = self.engine.get_enhanced_system_prompt()
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ]
+            messages = [{"role": "system", "content": system_prompt}]
+            
+            # Add conversation history from storage
+            chat_history = self.storage.get_chat_history()
+            if chat_history:
+                messages.extend(chat_history)
+            
+            # Add current user input
+            messages.append({"role": "user", "content": user_input})
             
             # Make streaming API call
             response = self.engine.api_call(
@@ -391,8 +438,23 @@ class StreamingAIChat:
                                     full_content += content_chunk
                                     # Stream each chunk in real-time
                                     self.renderer.stream_content(content_chunk)
+                                
+                                # Check for finish reason
+                                finish_reason = chunk_data['choices'][0].get('finish_reason')
+                                if finish_reason:
+                                    break
                                     
-                        except json.JSONDecodeError:
+                        except json.JSONDecodeError as e:
+                            # Debug: show JSON decode errors if debug mode is on
+                            debug_mode = os.getenv('GROK_DEBUG', '0') == '1'
+                            if debug_mode:
+                                self.renderer.show_system_message(f"JSON decode error: {e} for chunk: {data_str[:100]}", "warning")
+                            continue
+                        except Exception as e:
+                            # Catch any other streaming errors
+                            debug_mode = os.getenv('GROK_DEBUG', '0') == '1'
+                            if debug_mode:
+                                self.renderer.show_system_message(f"Streaming error: {e}", "warning")
                             continue
             
             # Track the API call for cost calculation

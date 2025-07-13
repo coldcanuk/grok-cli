@@ -382,23 +382,25 @@ class GroKitUI(GroKitInterface):
                 choice = self.get_menu_choice()
                 
                 if choice == '1':
-                    self.launch_grid_ui()  # Use grid UI for interactive chat
+                    self.launch_streaming_chat()  # New streaming chat interface
                 elif choice == '2':
-                    self.resume_previous_session()  # New session browser
+                    self.launch_grid_ui()  # Use grid UI for interactive chat
                 elif choice == '3':
+                    self.resume_previous_session()  # New session browser
+                elif choice == '4':
                     objective = input("\nEnter objective for leader mode: ").strip()
                     if objective:
                         self.execute_leader_mode(objective)
                         self.wait_for_key()
-                elif choice == '4':
-                    self.single_prompt_mode()
                 elif choice == '5':
-                    self.show_settings()
+                    self.single_prompt_mode()
                 elif choice == '6':
-                    self.show_cost_analysis()
+                    self.show_settings()
                 elif choice == '7':
-                    self.show_help()
+                    self.show_cost_analysis()
                 elif choice == '8':
+                    self.show_help()
+                elif choice == '9':
                     break
         
         except KeyboardInterrupt:
