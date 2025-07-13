@@ -595,8 +595,20 @@ class GroKitGridIntegration:
             return None
         
         elif command == "/clear":
+            # Clear both display and persistent storage
             self.renderer.clear_ai_history()
-            self._update_status("Chat history cleared")
+            self.storage.clear_session_history()
+            
+            # Reset token counter if available
+            if hasattr(self, 'token_counter') and self.token_counter:
+                self.token_counter.reset_session()
+            
+            # Reset cost display 
+            self.cost_display = "$0.0000"
+            self.tokens_display = "0"
+            self._update_cost_display()
+            
+            self._update_status("Chat history and session data cleared")
             # Only update AI window, not full screen
             self.renderer.render_ai_window()
             self.renderer.render_status_bar()
@@ -876,13 +888,10 @@ Tips:
                                     if new_content:
                                         streaming_content += new_content
                                         
-                                        # Update the assistant message in place
+                                        # Update the assistant message using streaming method
                                         if assistant_msg_index < len(self.renderer.ai_content):
-                                            self.renderer.ai_content[assistant_msg_index]['content'] = streaming_content
-                                            
-                                            # Re-render only the AI window
-                                            self.renderer.render_ai_window()
-                                            sys.stdout.flush()
+                                            # Use new streaming update method to avoid full window refresh
+                                            self.renderer.update_message_content_streaming(assistant_msg_index, streaming_content)
                         except json.JSONDecodeError:
                             continue
             

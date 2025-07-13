@@ -79,14 +79,27 @@ class GridRenderer:
         try:
             # Top border
             self.move_cursor(y, x)
+            # Clear the line first to prevent corruption
+            print(" " * width, end="")
+            self.move_cursor(y, x)
             print(f"{self.colors[color]}╔{title.center(width-2, '═')}╗{self.colors['end']}", end="")
             
             # Side borders
             for i in range(1, height-1):
                 self.move_cursor(y+i, x)
-                print(f"{self.colors[color]}║{' ' * (width-2)}║{self.colors['end']}", end="")
+                # Clear the line first
+                print(" " * width, end="")
+                self.move_cursor(y+i, x)
+                # Draw left border
+                print(f"{self.colors[color]}║{self.colors['end']}", end="")
+                # Move to right border position
+                self.move_cursor(y+i, x + width - 1)
+                print(f"{self.colors[color]}║{self.colors['end']}", end="")
             
             # Bottom border
+            self.move_cursor(y+height-1, x)
+            # Clear the line first
+            print(" " * width, end="")
             self.move_cursor(y+height-1, x)
             print(f"{self.colors[color]}╚{'═' * (width-2)}╝{self.colors['end']}", end="")
             
@@ -224,9 +237,29 @@ class GridRenderer:
             # Use markdown renderer for all message types including system messages
             rendered_lines = self.markdown_renderer.render_markdown(msg['content'])
             
+            # Handle truncation if needed
+            if msg.get('_truncate_to_height'):
+                max_content_lines = msg['_truncate_to_height'] - 2  # -1 for header, -1 for truncation indicator
+                if len(rendered_lines) > max_content_lines:
+                    rendered_lines = rendered_lines[:max_content_lines]
+                    # Add truncation indicator
+                    self.move_cursor(y + 1 + max_content_lines, x + 2)
+                    print(f"{self.colors['dim']}... [Message truncated - see history for full content]{self.colors['end']}", end="")
+                    lines_used = msg['_truncate_to_height']
+                    
+                    # Render the truncated lines
+                    for i, line in enumerate(rendered_lines):
+                        self.move_cursor(y + 1 + i, x + 2)
+                        # Truncate line if it exceeds available width
+                        line = self._truncate_line(line, width - 4)  # -4 for borders and padding
+                        print(line, end="")
+                    return lines_used
+            
+            # Normal rendering (no vertical truncation)
             for i, line in enumerate(rendered_lines):
                 self.move_cursor(y + 1 + i, x + 2)
-                # Note: line already contains ANSI color codes from markdown renderer
+                # Truncate line if it exceeds available width
+                line = self._truncate_line(line, width - 4)  # -4 for borders and padding
                 print(line, end="")
                 lines_used += 1
         else:
@@ -236,6 +269,42 @@ class GridRenderer:
             lines_used += 1
         
         return lines_used
+    
+    def _truncate_line(self, line: str, max_width: int) -> str:
+        """Truncate a line to fit within max_width, accounting for ANSI codes."""
+        import re
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        plain_line = ansi_escape.sub('', line)
+        
+        if len(plain_line) <= max_width:
+            return line
+        
+        # Line is too long, need to truncate
+        truncate_at = max_width - 3  # Reserve space for "..."
+        
+        # Simple approach: truncate the plain text and add ellipsis
+        # This isn't perfect with ANSI codes but prevents overflow
+        if truncate_at > 0:
+            # Count visible characters and find truncation point
+            visible_count = 0
+            truncate_index = 0
+            in_ansi = False
+            
+            for i, char in enumerate(line):
+                if char == '\x1b':
+                    in_ansi = True
+                elif in_ansi and char == 'm':
+                    in_ansi = False
+                elif not in_ansi:
+                    visible_count += 1
+                    if visible_count > truncate_at:
+                        truncate_index = i
+                        break
+            
+            if truncate_index > 0:
+                return line[:truncate_index] + f"{self.colors['dim']}...{self.colors['end']}"
+        
+        return line[:truncate_at] + "..."
     
     def render_input_area(self):
         """Render the user input area."""
@@ -391,6 +460,59 @@ class GridRenderer:
     def clear_ai_history(self):
         """Clear the AI conversation history."""
         self.ai_content = []
+    
+    def update_message_content_streaming(self, message_index: int, new_content: str):
+        """Update message content for streaming without full window refresh."""
+        if 0 <= message_index < len(self.ai_content):
+            # Update content
+            self.ai_content[message_index]['content'] = new_content
+            
+            # Use efficient in-place update instead of full window refresh
+            self._update_message_in_place(message_index)
+    
+    def _update_message_in_place(self, message_index: int):
+        """Efficiently update a specific message area without full redraw."""
+        try:
+            if message_index < 0 or message_index >= len(self.ai_content):
+                return
+                
+            # Only update if this is the last message (typical for streaming)
+            # and if it's currently visible
+            if message_index == len(self.ai_content) - 1:
+                # For streaming, we only update the last line of content
+                # This avoids the expensive full window redraw
+                msg = self.ai_content[message_index]
+                content = msg.get('content', '')
+                
+                # Simple approach: just move cursor to end of content area and print last chunk
+                # This gives streaming appearance without full redraws
+                if content:
+                    # Calculate approximate position (simplified)
+                    ai_y = self.header_height + 1
+                    content_start_y = ai_y + 1
+                    
+                    # Move to a reasonable position and show we're streaming
+                    lines = content.split('\n')
+                    if lines:
+                        last_line = lines[-1]
+                        # Show last chunk of content
+                        if len(last_line) > 2:  # Only show if substantial
+                            # Find a good position to show streaming indicator
+                            content_width = self.width - 6
+                            display_line = last_line[-min(50, len(last_line)):]  # Last 50 chars
+                            
+                            # Move cursor to a position that won't interfere
+                            cursor_y = content_start_y + min(5, len(lines))
+                            if cursor_y < self.height - 5:  # Make sure we're not too low
+                                self.move_cursor(cursor_y, 4)
+                                # Show a small streaming indicator without clearing everything
+                                print(f"{self.colors['dim']}●{self.colors['end']}", end="")
+                                sys.stdout.flush()
+            
+        except Exception:
+            # If in-place update fails, silently continue
+            # Don't fall back to full refresh to avoid the bug
+            pass
 
 
 class VersionManager:

@@ -23,6 +23,7 @@ from .request_manager import RequestManager, RequestPriority
 from .utils import get_random_message, load_grok_context, create_grok_directory_template
 from .tokenCount import TokenCounter
 from .tool_output_capture import ToolOutputCapture, EnhancedToolExecutor
+from .memory_manager import MemoryManager
 
 # xAI API endpoint - using v1 path (OpenAI compatible)
 API_URL = "https://api.x.ai/v1/chat/completions"
@@ -40,6 +41,7 @@ SYSTEM_PROMPT = """You are Grok, a helpful and truthful AI built by xAI. You hav
 - batch_read_files: Read multiple files efficiently
 - shell_command: Execute shell commands (cat, echo, touch, mkdir, rm, cd, ls, pwd)
 - brave_search: Search the web for information
+- memory_lookup: Search through chat history and session data for previous conversations and context
 
  FILESYSTEM ACCESS:
 - You CAN read, write, create, and modify files
@@ -343,6 +345,42 @@ class GrokEngine:
                 }
             ])
         
+        # Memory lookup tool - always enabled for GroKit
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "memory_lookup",
+                "description": "MEMORY ACCESS: Search through chat history and session data to find previous conversations, solutions, and context. You CAN lookup past interactions to provide continuity and remember previous discussions.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query to find in conversation history"
+                        },
+                        "search_type": {
+                            "type": "string",
+                            "enum": ["current_session", "recent_history", "all_history"],
+                            "description": "Scope of search - current_session (current chat only), recent_history (last week), all_history (everything)",
+                            "default": "recent_history"
+                        },
+                        "max_results": {
+                            "type": "integer",
+                            "description": "Maximum number of results to return (1-20)",
+                            "default": 5,
+                            "minimum": 1,
+                            "maximum": 20
+                        },
+                        "time_range": {
+                            "type": "string",
+                            "description": "Optional time range filter: 'today', 'last_week', or specific date like '2025-07-12'"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            }
+        })
+        
         return tools
     
     def handle_stream_with_tools(self, response, brave_api_key=None, debug_mode=None, capture_tools=False) -> Tuple[str, List[Dict], Optional[str]]:
@@ -545,6 +583,35 @@ class GrokEngine:
             command = arguments["command"]
             args = arguments.get("args", [])
             return self._execute_shell_command(command, args)
+        
+        elif function_name == "memory_lookup":
+            # Initialize memory manager with current source directory
+            if not hasattr(self, '_memory_manager') or self._memory_manager is None:
+                self._memory_manager = MemoryManager(self.source_directory)
+            
+            query = arguments["query"]
+            search_type = arguments.get("search_type", "recent_history")
+            max_results = arguments.get("max_results", 5)
+            time_range = arguments.get("time_range")
+            
+            # Validate parameters
+            if max_results < 1 or max_results > 20:
+                max_results = 5
+            
+            if search_type not in ["current_session", "recent_history", "all_history"]:
+                search_type = "recent_history"
+            
+            # Execute memory search
+            try:
+                result = self._memory_manager.search_memory(
+                    query=query,
+                    search_type=search_type,
+                    max_results=max_results,
+                    time_range=time_range
+                )
+                return result
+            except Exception as e:
+                return {"error": f"Memory lookup failed: {str(e)}"}
         
         else:
             return {"error": f"Unknown tool: {function_name}"}
@@ -801,9 +868,11 @@ class GrokEngine:
         ]
         
         try:
-            if XAI_SDK_AVAILABLE:
+            if XAI_SDK_AVAILABLE and not stream:
+                # Use SDK for non-streaming requests (more reliable)
                 return self._api_call_sdk(messages, model, stream, tools, reasoning, retry_count, fun_messages)
             else:
+                # Use requests for streaming or when SDK unavailable
                 return self._api_call_requests(key, messages, model, stream, tools, reasoning, retry_count, fun_messages)
         except Exception as e:
             if retry_count >= 8:

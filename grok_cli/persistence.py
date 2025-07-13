@@ -173,6 +173,23 @@ class PersistentStorage:
         messages.sort(key=lambda x: x.get("timestamp", ""))
         return messages[-limit:] if limit else messages
     
+    def clear_session_history(self):
+        """Clear all messages from the current session while preserving session metadata."""
+        session_data = self._load_session_data()
+        
+        # Clear messages but keep session metadata
+        session_data["messages"] = []
+        
+        # Reset cost tracking for this session
+        session_data["cost_tracking"] = {
+            "total_cost": 0.0,
+            "total_tokens": 0,
+            "operations": []
+        }
+        
+        # Save the cleared session
+        self._save_session_data(session_data)
+    
     def update_cost_tracking(self, cost: float, tokens: int, operation: str):
         """Update cost tracking information."""
         session_data = self._load_session_data()
